@@ -14,4 +14,4 @@ Basic reporting of inappropriate content (censoring keywords, and offensive phra
 Basic validation of comments on landlords, or disclaimers on the validity of information on the landlord. 
 
 What is the intended audience?
-Tenants and renters will be the intended users. 
+Tenants and renters will be the intended users 
