@@ -2,6 +2,17 @@
 #include <filesystem>
 #include <string>
 
+static std::string resolveDataPath(const std::string &relative) {
+    namespace fs = std::filesystem;
+    // try from current working dir (e.g., backend/) and from build/ (../data)
+    fs::path p1 = relative;
+    fs::path p2 = fs::path("..") / relative;
+    if (fs::exists(p1)) return p1.string();
+    if (fs::exists(p2)) return p2.string();
+    // last resort: return the original (controller will report missing)
+    return relative;
+}
+
 int main(){
     drogon::app().addListener("127.0.0.1", 8080);
     drogon::app().setThreadNum(1);
@@ -55,6 +66,11 @@ int main(){
     drogon::app().registerHandler("/api/users/me",
         [user](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
             user->me(req, std::move(cb));
+        }, {drogon::Get});
+
+    drogon::app().registerHandler("/api/landlords/search",
+        [landlord](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            landlord->search(req, std::move(cb));
         }, {drogon::Get});
 
 
