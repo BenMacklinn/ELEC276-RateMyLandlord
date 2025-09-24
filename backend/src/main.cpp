@@ -1,4 +1,7 @@
 #include <drogon/drogon.h>
+#include "controllers/AuthCtrl.h"
+#include "controllers/UserCtrl.h"
+#include "controllers/LandlordCtrl.h"
 #include <filesystem>
 #include <string>
 
@@ -13,7 +16,9 @@ static std::string resolveDataPath(const std::string &relative) {
     return relative;
 }
 
-int main(){
+int main() {
+
+    // Doing this for localhost specification
     drogon::app().addListener("127.0.0.1", 8080);
     drogon::app().setThreadNum(1);
     drogon::app().setLogLevel(trantor::Logger::kInfo);
@@ -27,6 +32,7 @@ int main(){
             mutableResp->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
         });
 
+    
 
     drogon::app().registerHandler("/api/{path}",
         [](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
@@ -44,6 +50,10 @@ int main(){
         },
         {drogon::Get, drogon::Post, drogon::Options});
 
+
+
+
+        
     // Handling paths to database
     const std::string usersPath = resolveDataPath("data/users.json");
     const std::string landlordsPath = resolveDataPath("data/landlords.json");
@@ -73,12 +83,6 @@ int main(){
             landlord->search(req, std::move(cb));
         }, {drogon::Get});
 
-
-
     drogon::app().run();
     return 0;
-
-    
-
-    
 }

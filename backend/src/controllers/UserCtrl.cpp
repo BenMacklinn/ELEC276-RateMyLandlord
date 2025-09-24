@@ -30,6 +30,7 @@ void UserCtrl::me(const drogon::HttpRequestPtr &req, std::function<void (const d
         }
     }
 
+    // Fallback if not found (shouldn't happen right after login/signup)
     if(name.empty()) name = "User";
 
     Json::Value me(Json::objectValue);

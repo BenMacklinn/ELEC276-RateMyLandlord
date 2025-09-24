@@ -14,10 +14,12 @@ void AuthCtrl::loadDb() {
 }
 
 std::string AuthCtrl::makeToken(const std::string &email) {
+    // DEMO token (replace with JWT/session in production)
     return "demo::" + email;
 }
 
 std::string AuthCtrl::parseToken(const std::string &authHeader) {
+    // Expect "Bearer demo::<email>"
     if(authHeader.rfind("Bearer ", 0) != 0) return "";
     auto token = authHeader.substr(7);
     if(token.rfind("demo::", 0) != 0) return "";
