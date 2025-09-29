@@ -14,6 +14,8 @@ public:
     explicit LandlordCtrl(const std::string &dbPath) : dbPath_(dbPath) {}
     void search(const drogon::HttpRequestPtr &req,
                 std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+    void stats(const drogon::HttpRequestPtr &req,
+               std::function<void (const drogon::HttpResponsePtr &)> &&cb);
 private:
     std::string dbPath_;
     std::mutex mu_;

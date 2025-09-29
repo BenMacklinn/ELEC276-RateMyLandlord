@@ -34,6 +34,12 @@ const API = {
     const j = await res.json().catch(()=>({}))
     if(!res.ok) throw new Error(j.error || 'Search failed')
     return j.results || []
+  },
+  async getStats() {
+    const res = await fetch('/api/landlords/stats')
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to fetch stats')
+    return j
   }
 }
 export default API

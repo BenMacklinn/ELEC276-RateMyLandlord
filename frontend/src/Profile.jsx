@@ -13,6 +13,10 @@ export default function Profile({token, onLogout}){
 
   return (
     <div>
+      <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', justifyContent: 'center'}}>
+        <img src="/new-logo.png" alt="RateMyLandlord" style={{width: '24px', height: '24px'}} />
+        <span style={{fontSize: '18px', fontWeight: '600', color: '#1f2937'}}>RateMyLandlord</span>
+      </div>
       <h2>Profile</h2>
       {err && <div style={{color:'crimson'}}>{err}</div>}
       {me ? (

@@ -83,6 +83,11 @@ int main() {
             landlord->search(req, std::move(cb));
         }, {drogon::Get});
 
+    drogon::app().registerHandler("/api/landlords/stats",
+        [landlord](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            landlord->stats(req, std::move(cb));
+        }, {drogon::Get});
+
     drogon::app().run();
     return 0;
 }
