@@ -1,12 +1,17 @@
 [
 	{
-		"email" : "luka@example.com",
+		"email" : "lukarod72@gmail.com",
 		"name" : "Luka",
-		"password" : "secret"
+		"password" : "Luka1234"
 	},
 	{
 		"email" : "demo@rml.dev",
 		"name" : "Demo RML",
 		"password" : "password"
+	},
+	{
+		"email" : "luka@example.com",
+		"name" : "Luka",
+		"password" : "secret"
 	}
 ]

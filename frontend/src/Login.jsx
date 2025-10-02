@@ -63,7 +63,7 @@ export default function Login({onLogin}){
     backdropFilter: 'blur(20px)',
     outline: 'none',
     transition: 'all 0.3s ease',
-    color: '#ffffff',
+    color: '#000000ff',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
   }
 

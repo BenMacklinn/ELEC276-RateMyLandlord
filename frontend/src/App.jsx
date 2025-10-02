@@ -89,7 +89,7 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
           <>
             <button onClick={onLoginClick} style={{
               ...navLinkStyle,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
               color: 'rgba(255, 255, 255, 0.9)',
               backdropFilter: 'blur(10px)'
@@ -107,7 +107,7 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
             <span style={{color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>Hi, {user.name}</span>
             <button onClick={onLogout} style={{
               ...navLinkStyle,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
               color: 'rgba(255, 255, 255, 0.9)',
               backdropFilter: 'blur(10px)'
