@@ -2,6 +2,7 @@
 #include "controllers/AuthCtrl.h"
 #include "controllers/UserCtrl.h"
 #include "controllers/LandlordCtrl.h"
+#include "controllers/ReviewCtrl.h"
 #include <filesystem>
 #include <string>
 
@@ -57,11 +58,14 @@ int main() {
     // Handling paths to database
     const std::string usersPath = resolveDataPath("data/users.json");
     const std::string landlordsPath = resolveDataPath("data/landlords.json");
+    const std::string reviewsPath = resolveDataPath("data/reviews.json");
 
     // Handling authentication, user and landlord paths
     auto auth = std::make_shared<AuthCtrl>(usersPath);
     auto user = std::make_shared<UserCtrl>(usersPath);
     auto landlord = std::make_shared<LandlordCtrl>(landlordsPath);
+    auto review = std::make_shared<ReviewCtrl>();
+    review->setDbPath(reviewsPath);
 
     drogon::app().registerHandler("/api/auth/login",
         [auth](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
@@ -86,6 +90,16 @@ int main() {
     drogon::app().registerHandler("/api/landlords/stats",
         [landlord](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
             landlord->stats(req, std::move(cb));
+        }, {drogon::Get});
+
+    drogon::app().registerHandler("/api/reviews/submit",
+        [review](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            review->submit(req, std::move(cb));
+        }, {drogon::Post});
+
+    drogon::app().registerHandler("/api/reviews/landlord/{id}",
+        [review](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb, const std::string &id) {
+            review->getForLandlord(req, std::move(cb), id);
         }, {drogon::Get});
 
     drogon::app().run();

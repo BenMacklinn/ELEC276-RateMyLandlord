@@ -10,6 +10,7 @@ add_executable(rml_backend
   src/controllers/AuthCtrl.cpp
   src/controllers/UserCtrl.cpp
   src/controllers/LandlordCtrl.cpp
+  src/controllers/ReviewCtrl.cpp
 )
 
 target_include_directories(rml_backend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

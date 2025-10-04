@@ -28,10 +28,21 @@ export default function Review() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // We'll implement this later
-    console.log('Review submitted:', formData)
+    try {
+      await API.submitReview(
+        formData.landlordId,
+        parseInt(formData.rating),
+        formData.title,
+        formData.review
+      )
+      // Redirect to the landlord's page or home
+      navigate('/')
+    } catch (error) {
+      console.error('Failed to submit review:', error)
+      alert('Failed to submit review: ' + error.message)
+    }
   }
 
   const pageStyle = {

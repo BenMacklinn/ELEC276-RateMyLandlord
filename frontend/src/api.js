@@ -40,6 +40,22 @@ const API = {
     const j = await res.json().catch(()=>({}))
     if(!res.ok) throw new Error(j.error || 'Failed to fetch stats')
     return j
+  },
+  async submitReview(landlordId, rating, title, review) {
+    const res = await fetch('/api/reviews/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({landlord_id: landlordId, rating, title, review})
+    })
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to submit review')
+    return j
+  },
+  async getLandlordReviews(landlordId) {
+    const res = await fetch(`/api/reviews/landlord/${landlordId}`)
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to fetch reviews')
+    return j.reviews || []
   }
 }
 export default API
