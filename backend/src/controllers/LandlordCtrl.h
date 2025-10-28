@@ -16,6 +16,8 @@ public:
                 std::function<void (const drogon::HttpResponsePtr &)> &&cb);
     void stats(const drogon::HttpRequestPtr &req,
                std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+    void leaderboard(const drogon::HttpRequestPtr &req,
+                    std::function<void (const drogon::HttpResponsePtr &)> &&cb);
 private:
     std::string dbPath_;
     std::mutex mu_;

@@ -1,6 +1,9 @@
 #include "LandlordCtrl.h"
 #include <fstream>
 #include <algorithm>
+#include <map>
+#include <vector>
+#include <cmath>
 
 static std::string lower(std::string s){
     std::transform(s.begin(), s.end(), s.begin(),
@@ -87,6 +90,98 @@ void LandlordCtrl::stats(const drogon::HttpRequestPtr &req,
     body["properties"] = propertyCount;
     body["units"] = unitCount;
 
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
+    cb(resp);
+}
+
+void LandlordCtrl::leaderboard(const drogon::HttpRequestPtr &req,
+                                std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+    // Load landlords data
+    Json::Value landlordDb;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        std::ifstream f(dbPath_);
+        if(!f.good()){
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+            resp->setStatusCode(drogon::k500InternalServerError);
+            (*resp->getJsonObject())["error"] = "landlords database missing";
+            cb(resp);
+            return;
+        }
+        f >> landlordDb;
+    }
+
+    // Load reviews data
+    Json::Value reviewDb;
+    {
+        // Try to load reviews from parent directory
+        std::ifstream reviewFile("data/reviews.json");
+        if (reviewFile.good()) {
+            reviewFile >> reviewDb;
+        } else {
+            // Try from current directory
+            std::ifstream reviewFile2("../data/reviews.json");
+            if (reviewFile2.good()) {
+                reviewFile2 >> reviewDb;
+            } else {
+                reviewDb["reviews"] = Json::Value(Json::arrayValue);
+            }
+        }
+    }
+
+    // Calculate average ratings for each landlord
+    std::map<std::string, std::pair<double, int>> landlordRatings; // landlord_id -> (sum, count)
+    
+    for (const auto &review : reviewDb["reviews"]) {
+        std::string landlordId = review["landlord_id"].asString();
+        int rating = review["rating"].asInt();
+        if (landlordRatings.find(landlordId) == landlordRatings.end()) {
+            landlordRatings[landlordId] = std::make_pair(0.0, 0);
+        }
+        landlordRatings[landlordId].first += rating;
+        landlordRatings[landlordId].second += 1;
+    }
+
+    // Create leaderboard entries
+    Json::Value results(Json::arrayValue);
+    std::vector<std::pair<std::string, double>> sortedLandlords;
+
+    for (const auto &ll : landlordDb["landlords"]) {
+        std::string landlordId = ll["landlord_id"].asString();
+        double avgRating = 0.0;
+        int reviewCount = 0;
+
+        if (landlordRatings.find(landlordId) != landlordRatings.end()) {
+            avgRating = landlordRatings[landlordId].first / landlordRatings[landlordId].second;
+            reviewCount = landlordRatings[landlordId].second;
+        }
+
+        // Create leaderboard entry
+        Json::Value entry = ll;
+        entry["average_rating"] = std::round(avgRating * 100.0) / 100.0; // Round to 2 decimal places
+        entry["review_count"] = reviewCount;
+        sortedLandlords.push_back({landlordId, avgRating});
+        results.append(entry);
+    }
+
+    // Sort results by average rating (highest to lowest)
+    // We need to reorder the results array
+    std::sort(sortedLandlords.begin(), sortedLandlords.end(), 
+              [](const auto &a, const auto &b) { return a.second > b.second; });
+
+    Json::Value sortedResults(Json::arrayValue);
+    for (const auto &sorted : sortedLandlords) {
+        for (const auto &entry : results) {
+            if (entry["landlord_id"].asString() == sorted.first) {
+                sortedResults.append(entry);
+                break;
+            }
+        }
+    }
+
+    Json::Value body(Json::objectValue);
+    body["leaderboard"] = sortedResults;
+    
     auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
     cb(resp);
 }
