@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Drogon CONFIG REQUIRED)
+find_package(CURL REQUIRED)
 
 add_executable(rml_backend
   src/main.cpp
@@ -14,4 +15,4 @@ add_executable(rml_backend
 )
 
 target_include_directories(rml_backend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(rml_backend PRIVATE Drogon::Drogon)
+target_link_libraries(rml_backend PRIVATE Drogon::Drogon CURL::libcurl)

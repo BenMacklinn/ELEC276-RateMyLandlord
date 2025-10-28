@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Gmail SMTP configuration (defaults can be overridden via environment variables)
+export SMTP_HOST="${SMTP_HOST:-smtp.gmail.com}"
+export SMTP_PORT="${SMTP_PORT:-587}"
+export SMTP_USERNAME="${SMTP_USERNAME:-elec376group10sender@gmail.com}"
+export SMTP_PASSWORD="${SMTP_PASSWORD:-gpcpxlaflxknxzeb}"
+export SMTP_FROM="${SMTP_FROM:-$SMTP_USERNAME}"
+export SMTP_FROM_NAME="${SMTP_FROM_NAME:-RateMyLandlord}"
+
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT/backend"
 
