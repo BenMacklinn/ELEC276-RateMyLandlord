@@ -4,6 +4,7 @@ import Login from './Login'
 import Signup from './Signup'
 import Landlords from './Landlords'
 import Review from './Review'
+import Leaderboard from './Leaderboard'
 import API from './api'
 
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
@@ -72,19 +73,25 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
         RateMyLandlord
       </Link>
       <div style={navLinksStyle}>
-        <div style={activeNavLinkStyle}>
+        <Link to="/" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9,22 9,12 15,12 15,22"/>
           </svg>
           Home
-        </div>
+        </Link>
         <Link to="/landlords" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/>
             <path d="M21 21l-4.35-4.35"/>
           </svg>
           Search
+        </Link>
+        <Link to="/leaderboard" style={navLinkStyle}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+          Leaderboard
         </Link>
         {!user ? (
           <>
@@ -617,6 +624,14 @@ export default function App(){
             />
             <Review />
           </>
+        } />
+        <Route path="/leaderboard" element={
+          <Leaderboard
+            user={user}
+            onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
+            onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
+            onLogout={()=>{ localStorage.removeItem('token'); setToken(null) }}
+          />
         } />
       </Routes>
 

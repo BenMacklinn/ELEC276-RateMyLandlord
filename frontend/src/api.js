@@ -61,6 +61,12 @@ const API = {
     if(!res.ok) throw new Error(j.error || 'Failed to fetch stats')
     return j
   },
+  async getLeaderboard() {
+    const res = await fetch('/api/landlords/leaderboard')
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to fetch leaderboard')
+    return j.leaderboard || []
+  },
   async submitReview(landlordId, rating, title, review) {
     const res = await fetch('/api/reviews/submit', {
       method: 'POST',

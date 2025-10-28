@@ -102,6 +102,11 @@ int main() {
             landlord->stats(req, std::move(cb));
         }, {drogon::Get});
 
+    drogon::app().registerHandler("/api/landlords/leaderboard",
+        [landlord](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            landlord->leaderboard(req, std::move(cb));
+        }, {drogon::Get});
+
     drogon::app().registerHandler("/api/reviews/submit",
         [review](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
             review->submit(req, std::move(cb));
