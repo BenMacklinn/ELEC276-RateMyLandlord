@@ -19,6 +19,26 @@ const API = {
     if(!res.ok) throw new Error(j.error || 'Signup failed')
     return j
   },
+  async requestVerification(email) {
+    const res = await fetch('/api/auth/request-verification', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email})
+    })
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to send verification code')
+    return j
+  },
+  async verifyEmailCode(email, code) {
+    const res = await fetch('/api/auth/verify-code', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, code})
+    })
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Invalid verification code')
+    return j
+  },
   async me(token) {
     const res = await fetch('/api/users/me', {
       headers: { 'Authorization': `Bearer ${token}` }

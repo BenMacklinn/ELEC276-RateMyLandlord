@@ -77,6 +77,16 @@ int main() {
             auth->signup(req, std::move(cb));
         }, {drogon::Post});
 
+    drogon::app().registerHandler("/api/auth/request-verification",
+        [auth](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            auth->requestVerification(req, std::move(cb));
+        }, {drogon::Post});
+
+    drogon::app().registerHandler("/api/auth/verify-code",
+        [auth](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
+            auth->verifyCode(req, std::move(cb));
+        }, {drogon::Post});
+
     drogon::app().registerHandler("/api/users/me",
         [user](const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
             user->me(req, std::move(cb));

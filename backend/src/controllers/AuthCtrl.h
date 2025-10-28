@@ -4,6 +4,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <mutex>
+#include <chrono>
 
 /*  
     What is AuthCtrl? 
@@ -29,10 +30,22 @@ public:
     void signup(const drogon::HttpRequestPtr &req,
                 std::function<void (const drogon::HttpResponsePtr &)> &&cb);
 
+    void requestVerification(const drogon::HttpRequestPtr &req,
+                             std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+
+    void verifyCode(const drogon::HttpRequestPtr &req,
+                    std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+
 private:
     std::string dbPath_;
     struct User { std::string email; std::string password; std::string name; };
+    struct PendingVerification {
+        std::string code;
+        std::chrono::steady_clock::time_point expiresAt;
+        bool verified{false};
+    };
     std::unordered_map<std::string, User> users_;
+    std::unordered_map<std::string, PendingVerification> pendingVerifications_;
     std::mutex mu_;
 
     static std::string makeToken(const std::string &email);

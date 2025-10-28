@@ -1,5 +1,10 @@
 [
 	{
+		"email" : "lukarod72@gmail.com",
+		"name" : "Luka Rodrigues",
+		"password" : "Luka1234"
+	},
+	{
 		"email" : "22xbr4@queensu.ca",
 		"name" : "Sebastian Pereira ",
 		"password" : "hello123"
@@ -15,7 +20,7 @@
 		"password" : "password"
 	},
 	{
-		"email" : "lukarod72@gmail.com",
+		"email" : "20lfr@queensu.ca",
 		"name" : "Luka",
 		"password" : "Luka1234"
 	}
