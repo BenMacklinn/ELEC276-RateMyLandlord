@@ -1,18 +1,13 @@
 [
 	{
-		"email" : "lukarod72@gmail.com",
-		"name" : "Luka Rodrigues",
-		"password" : "Luka1234"
+		"email" : "jacob.huynh@queensu.ca",
+		"name" : "Jacob",
+		"password" : "22mg77"
 	},
 	{
-		"email" : "22xbr4@queensu.ca",
-		"name" : "Sebastian Pereira ",
-		"password" : "hello123"
-	},
-	{
-		"email" : "luka@example.com",
+		"email" : "20lfr@queensu.ca",
 		"name" : "Luka",
-		"password" : "secret"
+		"password" : "Luka1234"
 	},
 	{
 		"email" : "demo@rml.dev",
@@ -20,8 +15,18 @@
 		"password" : "password"
 	},
 	{
-		"email" : "20lfr@queensu.ca",
+		"email" : "luka@example.com",
 		"name" : "Luka",
+		"password" : "secret"
+	},
+	{
+		"email" : "22xbr4@queensu.ca",
+		"name" : "Sebastian Pereira ",
+		"password" : "hello123"
+	},
+	{
+		"email" : "lukarod72@gmail.com",
+		"name" : "Luka Rodrigues",
 		"password" : "Luka1234"
 	}
 ]

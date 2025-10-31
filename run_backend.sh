@@ -15,7 +15,15 @@ cd "$ROOT/backend"
 # Clean build
 rm -rf build
 mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
+if [ ! -f CMakeCache.txt ]; then
+  cmake .. \
+    -DMYSQL_INCLUDE_DIR=/usr/include/mysql \
+    -DMYSQL_LIBRARY_DIR=/lib/x86_64-linux-gnu \
+    -DMYSQL_LIBRARIES=/lib/x86_64-linux-gnu/libmysqlclient.so \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Wno-dev
+fi
+
 cmake --build . -j
 
 # Free the port (macOS/Linux) - OPTIONAL
