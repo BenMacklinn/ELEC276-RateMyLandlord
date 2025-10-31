@@ -2,6 +2,65 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import API from './api'
 
+function ReviewList({ landlordId }) {
+  const [reviews, setReviews] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let ok = true
+    API.getLandlordReviews(landlordId)
+      .then(reviews => { 
+        if (ok) { 
+          setReviews(reviews)
+          setLoading(false) 
+        }
+      })
+      .catch((error) => { 
+        console.error('Error fetching reviews:', error)
+        if (ok) setLoading(false) 
+      })
+    return () => { ok = false }
+  }, [landlordId])
+
+  if (loading) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>Loading reviews...</div>
+  if (!reviews.length) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>No reviews yet</div>
+
+  return (
+    <div style={{ marginTop: '12px' }}>
+      {reviews.map(review => (
+        <div key={review.id} style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '12px'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            color: '#ffffff'
+          }}>
+            <div style={{ fontWeight: 'bold' }}>{review.title}</div>
+            <div>Rating: {review.rating}/5</div>
+          </div>
+          <div style={{ 
+            marginTop: '8px',
+            color: 'rgba(255, 255, 255, 0.9)'
+          }}>{review.review}</div>
+          <div style={{ 
+            fontSize: '0.8em', 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            marginTop: '8px'
+          }}>
+            {new Date(review.created_at).toLocaleDateString()}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   const navStyle = {
     display: 'flex',
@@ -427,6 +486,13 @@ function SearchResults({err, loading, list}){
                         ))}
                       </div>
                     ))}
+
+                    <div style={{marginTop: '30px'}}>
+                      <h3 style={{fontSize: '20px', fontWeight: '600', color: '#ffffff', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>
+                        Reviews
+                      </h3>
+                      <ReviewList landlordId={selectedLandlord.landlord_id} />
+                    </div>
                   </div>
                 </>
               )
