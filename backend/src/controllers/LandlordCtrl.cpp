@@ -11,6 +11,36 @@ static std::string lower(std::string s){
     return s;
 }
 
+// Helper: load reviews.json and compute per-landlord (sum, count)
+static std::map<std::string, std::pair<double,int>> computeLandlordRatings()
+{
+    std::map<std::string, std::pair<double,int>> ratings;
+    Json::Value reviewDb;
+    std::ifstream reviewFile("data/reviews.json");
+    if (reviewFile.good()) {
+        reviewFile >> reviewDb;
+    } else {
+        std::ifstream reviewFile2("../data/reviews.json");
+        if (reviewFile2.good()) {
+            reviewFile2 >> reviewDb;
+        } else {
+            reviewDb["reviews"] = Json::Value(Json::arrayValue);
+        }
+    }
+
+    for (const auto &review : reviewDb["reviews"]) {
+        std::string landlordId = review["landlord_id"].asString();
+        int rating = review["rating"].asInt();
+        if (ratings.find(landlordId) == ratings.end()) {
+            ratings[landlordId] = std::make_pair(0.0, 0);
+        }
+        ratings[landlordId].first += rating;
+        ratings[landlordId].second += 1;
+    }
+
+    return ratings;
+}
+
 void LandlordCtrl::search(const drogon::HttpRequestPtr &req,
                           std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
     auto q = req->getParameter("name");
@@ -30,14 +60,26 @@ void LandlordCtrl::search(const drogon::HttpRequestPtr &req,
         f >> db;
     }
 
+    // Compute ratings map once and attach to results
+    auto landlordRatings = computeLandlordRatings();
+
     Json::Value results(Json::arrayValue);
     const auto &arr = db["landlords"];
     for(const auto &ll : arr){
         std::string name = ll["name"].asString();
-        // Check if input (query) is empty or the output when looking for the landlord name is NOT empty
         if(query.empty() || lower(name).find(query) != std::string::npos){
-            // Searching for all names that include the query. If we input John, all entries in the json with "john" inside the landlord name will be appended to results
-            results.append(ll);
+            Json::Value landlord = ll;
+            std::string landlordId = ll["landlord_id"].asString();
+            double avgRating = 0.0;
+            int reviewCount = 0;
+            auto it = landlordRatings.find(landlordId);
+            if(it != landlordRatings.end() && it->second.second > 0){
+                avgRating = it->second.first / it->second.second;
+                reviewCount = it->second.second;
+            }
+            landlord["average_rating"] = std::round(avgRating * 100.0) / 100.0;
+            landlord["review_count"] = reviewCount;
+            results.append(landlord);
         }
     }
 
@@ -111,36 +153,8 @@ void LandlordCtrl::leaderboard(const drogon::HttpRequestPtr &req,
         f >> landlordDb;
     }
 
-    // Load reviews data
-    Json::Value reviewDb;
-    {
-        // Try to load reviews from parent directory
-        std::ifstream reviewFile("data/reviews.json");
-        if (reviewFile.good()) {
-            reviewFile >> reviewDb;
-        } else {
-            // Try from current directory
-            std::ifstream reviewFile2("../data/reviews.json");
-            if (reviewFile2.good()) {
-                reviewFile2 >> reviewDb;
-            } else {
-                reviewDb["reviews"] = Json::Value(Json::arrayValue);
-            }
-        }
-    }
-
-    // Calculate average ratings for each landlord
-    std::map<std::string, std::pair<double, int>> landlordRatings; // landlord_id -> (sum, count)
-    
-    for (const auto &review : reviewDb["reviews"]) {
-        std::string landlordId = review["landlord_id"].asString();
-        int rating = review["rating"].asInt();
-        if (landlordRatings.find(landlordId) == landlordRatings.end()) {
-            landlordRatings[landlordId] = std::make_pair(0.0, 0);
-        }
-        landlordRatings[landlordId].first += rating;
-        landlordRatings[landlordId].second += 1;
-    }
+    // Compute ratings map once (sum,count) using helper
+    auto landlordRatings = computeLandlordRatings();
 
     // Create leaderboard entries
     Json::Value results(Json::arrayValue);
