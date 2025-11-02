@@ -5,6 +5,8 @@
 #include "controllers/ReviewCtrl.h"
 #include <filesystem>
 #include <string>
+#include <sodium.h>
+#include <iostream>
 
 static std::string resolveDataPath(const std::string &relative) {
     namespace fs = std::filesystem;
@@ -19,6 +21,11 @@ static std::string resolveDataPath(const std::string &relative) {
 
 int main() {
 
+    // Checking if libsodium initializes correctly
+    if (sodium_init() < 0) {
+    std::cerr << "libsodium initialization failed\n";
+    return 1;
+    }
     // Doing this for localhost specification
     drogon::app().addListener("127.0.0.1", 8080);
     drogon::app().setThreadNum(1);
