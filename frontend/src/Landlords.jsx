@@ -2,6 +2,71 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import API from './api'
 
+function ReviewList({ landlordId, onRatingCalculated }) {
+  const [reviews, setReviews] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let ok = true
+    API.getLandlordReviews(landlordId)
+      .then(reviews => { 
+        if (ok) { 
+          setReviews(reviews)
+          setLoading(false)
+          // compute average and notify parent
+          if (onRatingCalculated) {
+            const count = reviews.length
+            const avg = count ? (reviews.reduce((s, r) => s + (r.rating||0), 0) / count) : 0
+            onRatingCalculated(parseFloat(avg.toFixed(1)), count)
+          }
+        }
+      })
+      .catch((error) => { 
+        console.error('Error fetching reviews:', error)
+        if (ok) setLoading(false) 
+      })
+    return () => { ok = false }
+  }, [landlordId, onRatingCalculated])
+
+  if (loading) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>Loading reviews...</div>
+  if (!reviews.length) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>No reviews yet</div>
+
+  return (
+    <div style={{ marginTop: '12px' }}>
+      {reviews.map(review => (
+        <div key={review.id} style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '12px'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            color: '#ffffff'
+          }}>
+            <div style={{ fontWeight: 'bold' }}>{review.title}</div>
+            <div>Rating: {review.rating}/5</div>
+          </div>
+          <div style={{ 
+            marginTop: '8px',
+            color: 'rgba(255, 255, 255, 0.9)'
+          }}>{review.review}</div>
+          <div style={{ 
+            fontSize: '0.8em', 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            marginTop: '8px'
+          }}>
+            {new Date(review.created_at).toLocaleDateString()}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   const navStyle = {
     display: 'flex',
@@ -124,6 +189,8 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
 
 function SearchResults({err, loading, list}){
   const [expandedCard, setExpandedCard] = React.useState(null)
+  const [landlordAvg, setLandlordAvg] = React.useState(null)
+  const [landlordReviewCount, setLandlordReviewCount] = React.useState(0)
 
   const resultsStyle = {
     maxWidth: '1200px',
@@ -244,7 +311,13 @@ function SearchResults({err, loading, list}){
 
   const handleCardClick = (landlordId) => {
     // Toggle: if this card is expanded, collapse it; otherwise expand it
-    setExpandedCard(expandedCard === landlordId ? null : landlordId)
+    const newExpanded = expandedCard === landlordId ? null : landlordId
+    setExpandedCard(newExpanded)
+    if (newExpanded === null) {
+      // reset rating display when closing
+      setLandlordAvg(null)
+      setLandlordReviewCount(0)
+    }
   }
 
   // Modal overlay styles
@@ -427,6 +500,23 @@ function SearchResults({err, loading, list}){
                         ))}
                       </div>
                     ))}
+
+                    <div style={{marginTop: '20px'}}>
+                      <div style={modalDetailStyle}>
+                        <strong style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                          Average Rating:
+                        </strong>
+                        {selectedLandlord.average_rating ? `${selectedLandlord.average_rating.toFixed(1)} ⭐ (${selectedLandlord.review_count} reviews)` : (landlordAvg ? `${landlordAvg} ⭐ (${landlordReviewCount} reviews)` : 'No ratings yet')}
+                      </div>
+
+                      <h3 style={{fontSize: '20px', fontWeight: '600', color: '#ffffff', marginTop: '16px', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>
+                        Reviews
+                      </h3>
+                      <ReviewList landlordId={selectedLandlord.landlord_id} onRatingCalculated={(avg,count)=>{ setLandlordAvg(avg); setLandlordReviewCount(count); }} />
+                    </div>
                   </div>
                 </>
               )

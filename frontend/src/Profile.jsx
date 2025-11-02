@@ -76,32 +76,44 @@ export default function Profile({token, onLogout}){
           <h3 style={{marginTop: '24px'}}>Property Listings</h3>
           <div style={{display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '16px'}}>
             {landlords.map(landlord => (
-              <React.Fragment key={landlord.landlord_id}>
-                {landlord.properties.map(property => (
-                  <div key={property.property_id} style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                    borderRadius: '8px',
-                    padding: '20px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                  }}>
-                    <h4 style={{margin: '0 0 16px', fontSize: '1.25rem'}}>
-                      {property.address.street}, {property.address.city}, {property.address.state}
-                    </h4>
-                    {property.unit_details.map((unit, index) => (
-                      <div key={index} style={{marginBottom: '12px'}}>
-                        <div style={{fontWeight: '500'}}>{unit.unit_number}:</div>
-                        <div style={{color: '#4a5568'}}>
-                          {unit.bedrooms} bedroom, {unit.bathrooms} bathroom - ${unit.rent}/month
-                        </div>
+              <div key={landlord.landlord_id} style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                borderRadius: '8px',
+                padding: '20px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+              }}>
+                <h4 style={{margin: '0 0 16px', fontSize: '1.25rem', color: '#2d3748'}}>
+                  {landlord.name}
+                </h4>
+                <div style={{marginBottom: '20px'}}>
+                  {landlord.properties.map(property => (
+                    <div key={property.property_id} style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      padding: '16px',
+                      marginBottom: '12px'
+                    }}>
+                      <div style={{fontWeight: '500', marginBottom: '8px'}}>
+                        {property.address.street}, {property.address.city}, {property.address.state}
                       </div>
-                    ))}
-                    <div style={{marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '16px'}}>
-                      <h5 style={{margin: '0 0 12px', fontSize: '1.1rem'}}>Reviews</h5>
-                      <ReviewList landlordId={property.property_id} />
+                      {property.unit_details.map((unit, index) => (
+                        <div key={index} style={{marginBottom: '8px', paddingLeft: '12px'}}>
+                          <div style={{fontWeight: '500'}}>{unit.unit_number}:</div>
+                          <div style={{color: '#4a5568'}}>
+                            {unit.bedrooms} bedroom, {unit.bathrooms} bathroom - ${unit.rent}/month
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </React.Fragment>
+                  ))}
+                </div>
+                <div style={{borderTop: '2px solid #e5e7eb', paddingTop: '16px'}}>
+                  <h5 style={{margin: '0 0 12px', fontSize: '1.1rem', color: '#2d3748'}}>
+                    Reviews for {landlord.name}
+                  </h5>
+                  <ReviewList landlordId={landlord.landlord_id} />
+                </div>
+              </div>
             ))}
           </div>
         </div>
