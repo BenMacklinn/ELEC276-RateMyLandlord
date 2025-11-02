@@ -1,37 +1,9 @@
 [
 	{
-		"email" : "sindusaram@gmail.com",
-		"name" : "Sindu",
-		"password" : "password123"
-	},
-	{
-		"email" : "lukarod72@gmail.com",
-		"name" : "Luka Rodrigues",
-		"password" : "Luka1234"
-	},
-	{
-		"email" : "22xbr4@queensu.ca",
-		"name" : "Sebastian Pereira ",
-		"password" : "hello123"
-	},
-	{
-		"email" : "luka@example.com",
-		"name" : "Luka",
-		"password" : "secret"
-	},
-	{
-		"email" : "demo@rml.dev",
-		"name" : "Demo RML",
-		"password" : "password"
-	},
-	{
-		"email" : "20lfr@queensu.ca",
-		"name" : "Luka",
-		"password" : "Luka1234"
-	},
-	{
 		"email" : "jacob.huynh@queensu.ca",
 		"name" : "Jacob",
-		"password" : "22mg77"
+		"password_hashed" : "$argon2id$v=19$m=65536,t=2,p=1$FKVou5ikf01Y1PhsIO+C5A$xiWjXVn9T1KwQ47HybS3qgrZY5gAlIWsKfODGfTWK9M",
+		"password_plain" : "22mg77",
+		"password_scheme" : "argon2id-phc"
 	}
 ]

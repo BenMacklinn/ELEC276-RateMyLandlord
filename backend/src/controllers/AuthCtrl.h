@@ -36,9 +36,21 @@ public:
     void verifyCode(const drogon::HttpRequestPtr &req,
                     std::function<void (const drogon::HttpResponsePtr &)> &&cb);
 
+    // Argon2id hashing and verification helpers
+    static bool hashPassword(const std::string &plain, std::string &encoded);
+    static bool verifyPassword(const std::string &plain, const std::string &encoded);
+    static bool isArgon2idEncoded(const std::string &maybe_encoded);
+
 private:
     std::string dbPath_;
-    struct User { std::string email; std::string password; std::string name; };
+
+    struct User {
+        std::string email;
+        std::string password_plain; // DEMO ONLY, REMOVE IN PRODUCTION
+        std::string password_hashed; // $argon2id$ PHC string format
+        std::string name;
+    };
+
     struct PendingVerification {
         std::string code;
         std::chrono::steady_clock::time_point expiresAt;

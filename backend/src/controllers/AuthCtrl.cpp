@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <mutex>
 #include <cstring>
+#include <sodium.h>
 
 // Creating unnamed namespace to prevent varaible/functional collisons
 namespace {
@@ -17,6 +18,33 @@ namespace {
         if(start == std::string::npos) return "";
         const auto end = input.find_last_not_of(" \r\n\t");
         return input.substr(start, end - start + 1);
+    }
+    
+    // Initializing libsodium for Argon2id hashing
+    const int _sodium_ok = sodium_init();
+
+    // Argon2id password hashing and verification helpers
+        static bool hashPasswordArgon2id(const std::string &plain, std::string &encoded) {
+        char out[crypto_pwhash_STRBYTES];
+        if (crypto_pwhash_str(
+                out,
+                plain.c_str(), plain.size(),
+                crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
+            return false;
+        }
+        encoded.assign(out);
+        return true;
+    }
+
+    // Verifies a password against an Argon2id hash
+    static bool verifyPasswordArgon2id(const std::string &plain, const std::string &encoded) {
+        return crypto_pwhash_str_verify(encoded.c_str(), plain.c_str(), plain.size()) == 0;
+    }
+
+    // Checks if a string looks like an Argon2id hash
+    static bool looksLikeArgon2id(const std::string &maybe) {
+        return maybe.rfind("$argon2id$", 0) == 0;
     }
 
 
@@ -171,10 +199,31 @@ void AuthCtrl::loadDb() {
     if(!f.good()) return;
     Json::Value root;
     f >> root;
-    for(const auto &u : root) {
-        User user{u["email"].asString(), u["password"].asString(), u.get("name","").asString()};
-        users_[user.email] = user;
+    for (const auto &u : root) {
+    User user;
+    user.email = u["email"].asString();
+    user.name  = u.get("name", "").asString();
+
+    // New schema (preferred for demo): password_plain + password_hashed
+    if (u.isMember("password_plain")) {
+        user.password_plain = u["password_plain"].asString();
+    } else if (u.isMember("password")) {
+        // Legacy plaintext field named "password"
+        user.password_plain = u["password"].asString();
     }
+
+    if (u.isMember("password_hashed")) {
+        user.password_hashed = u["password_hashed"].asString();
+    } else if (u.isMember("password_hash")) {
+        // Legacy hashed field named "password_hash"
+        user.password_hashed = u["password_hash"].asString();
+    } else {
+        user.password_hashed.clear();
+    }
+
+    users_[user.email] = std::move(user);
+}
+
 }
 
 std::string AuthCtrl::makeToken(const std::string &email) {
@@ -342,13 +391,53 @@ void AuthCtrl::login(const drogon::HttpRequestPtr &req,
     std::string email = (*json)["email"].asString();
     std::string password = (*json)["password"].asString();
     auto it = users_.find(email);
-    if(it == users_.end() || it->second.password != password) {
+
+    // HASH secure verification + legacy upgrade
+    bool ok = false;
+
+    if (it != users_.end()) {
+        const std::string &stored_phc = it->second.password_hashed;
+
+        if (!stored_phc.empty() && AuthCtrl::isArgon2idEncoded(stored_phc)) {
+        // Preferred path: verify against Argon2id PHC
+            ok = AuthCtrl::verifyPassword(password, stored_phc);
+        } else {
+            // Legacy path: allow one-time plaintext match (demo), then upgrade to hash
+            if (!it->second.password_plain.empty() && it->second.password_plain == password) {
+                std::string encoded;
+                if (AuthCtrl::hashPassword(password, encoded)) {
+                    it->second.password_hashed = encoded;
+
+                    // Persist upgrade with BOTH fields for demo
+                    Json::Value out(Json::arrayValue);
+                    for (const auto &kv : users_) {
+                        const auto &usr = kv.second;
+                        Json::Value u(Json::objectValue);
+                        u["email"] = usr.email;
+                        u["name"]  = usr.name;
+                        u["password_plain"]  = usr.password_plain;   // demo only
+                        u["password_hashed"] = usr.password_hashed;  // real auth
+                        u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
+                                           ? "argon2id-phc" : "none";
+                        out.append(u);
+                    }
+                    std::ofstream f(dbPath_, std::ios::trunc);
+                    f << out;
+                    f.close();
+                }
+                ok = true;
+            }
+        }
+    }
+
+    if (it == users_.end() || !ok) {
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k401Unauthorized);
         (*resp->getJsonObject())["error"] = "invalid credentials";
         cb(resp);
         return;
     }
+
 
     // Now we have passed all the login checks (Is there data? and Is the data in the database?), we can now confirm the request. 
     Json::Value payload(Json::objectValue);
@@ -382,45 +471,78 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
     }
 
     {
-        std::lock_guard<std::mutex> lk(mu_);
-        auto pendingIt = pendingVerifications_.find(email);
-        const auto now = std::chrono::steady_clock::now();
-        if(pendingIt == pendingVerifications_.end() || !pendingIt->second.verified || now > pendingIt->second.expiresAt) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k400BadRequest);
-            (*resp->getJsonObject())["error"] = "email must be verified before signup";
-            cb(resp);
-            return;
-        }
-
-        if(users_.find(email) != users_.end()) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k409Conflict);
-            (*resp->getJsonObject())["error"] = "user already exists";
-            cb(resp);
-            return;
-        }
-        users_[email] = User{email, password, name};
-        pendingVerifications_.erase(pendingIt);
-
-        // persist to users.json (array of users)
-        Json::Value out(Json::arrayValue);
-        for(const auto &kv : users_) {
-            Json::Value u(Json::objectValue);
-            u["email"] = kv.second.email;
-            u["password"] = kv.second.password;
-            u["name"] = kv.second.name;
-            out.append(u);
-        }
-        std::ofstream f(dbPath_, std::ios::trunc);
-        f << out;
-        f.close();
+    std::lock_guard<std::mutex> lk(mu_);
+    auto pendingIt = pendingVerifications_.find(email);
+    const auto now = std::chrono::steady_clock::now();
+    if(pendingIt == pendingVerifications_.end() || !pendingIt->second.verified || now > pendingIt->second.expiresAt) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k400BadRequest);
+        (*resp->getJsonObject())["error"] = "email must be verified before signup";
+        cb(resp);
+        return;
     }
 
+    if(users_.find(email) != users_.end()) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k409Conflict);
+        (*resp->getJsonObject())["error"] = "user already exists";
+        cb(resp);
+        return;
+    }
+
+    // HASH password before saving
+    std::string encoded;
+    if (!AuthCtrl::hashPassword(password, encoded)) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "internal error (hashing failed)";
+        cb(resp);
+        return;
+    }
+
+    // Store BOTH fields (demo + real auth)
+    User nu;
+    nu.email = email;
+    nu.name  = name;
+    nu.password_plain  = password;  // DEMO ONLY
+    nu.password_hashed = encoded;   // Argon2id PHC for real auth
+    users_[email] = std::move(nu);
+    pendingVerifications_.erase(pendingIt);
+
+    // persist to users.json (array of users)
+    Json::Value out(Json::arrayValue);
+    for (const auto &kv : users_) {
+        const auto &usr = kv.second;
+        Json::Value u(Json::objectValue);
+        u["email"] = usr.email;
+        u["name"]  = usr.name;
+        u["password_plain"]  = usr.password_plain;   // demo
+        u["password_hashed"] = usr.password_hashed;  // real auth
+        u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
+                       ? "argon2id-phc" : "none";
+        out.append(u);
+    }
+    std::ofstream f(dbPath_, std::ios::trunc);
+    f << out;
+    f.close();
+}
     Json::Value payload(Json::objectValue);
     payload["token"] = makeToken(email);
     payload["name"] = name;
     payload["email"] = email;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(payload);
     cb(resp);
+}
+
+bool AuthCtrl::hashPassword(const std::string &plain, std::string &encoded) {
+    return hashPasswordArgon2id(plain, encoded);
+}
+
+bool AuthCtrl::verifyPassword(const std::string &plain, const std::string &encoded) {
+    if (!looksLikeArgon2id(encoded)) return false;
+        return verifyPasswordArgon2id(plain, encoded);
+}
+
+bool AuthCtrl::isArgon2idEncoded(const std::string &maybe_encoded) {
+    return looksLikeArgon2id(maybe_encoded);
 }
