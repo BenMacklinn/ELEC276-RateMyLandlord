@@ -1,10 +1,11 @@
 import React from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, Link, Navigate } from 'react-router-dom'
 import Login from './Login'
 import Signup from './Signup'
 import Landlords from './Landlords'
 import Review from './Review'
 import Leaderboard from './Leaderboard'
+import Admin from './Admin'
 import API from './api'
 
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
@@ -93,6 +94,15 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
           </svg>
           Leaderboard
         </Link>
+        {user?.admin ? (
+          <Link to="/admin" style={navLinkStyle}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l8 3v7c0 6-8 10-8 10s-8-4-8-10V5z"/>
+              <circle cx="12" cy="11" r="3"/>
+            </svg>
+            Admin
+          </Link>
+        ) : null}
         {!user ? (
           <>
             <button onClick={onLoginClick} style={{
@@ -578,18 +588,55 @@ function HomePage(){
 export default function App(){
   const [token, setToken] = React.useState(localStorage.getItem('token'))
   const [user, setUser] = React.useState(null)
+  const [userLoading, setUserLoading] = React.useState(!!token)
   const [showLogin, setShowLogin] = React.useState(false)
   const [showSignup, setShowSignup] = React.useState(false)
 
   React.useEffect(()=>{
-    if(!token){ setUser(null); return }
-    API.me(token).then(setUser).catch(()=> setUser(null))
+    if(!token){
+      setUser(null)
+      setUserLoading(false)
+      return
+    }
+    setUserLoading(true)
+    API.me(token)
+      .then(setUser)
+      .catch(()=> setUser(null))
+      .finally(()=> setUserLoading(false))
   }, [token])
+
+  const handleAuthSuccess = (data) => {
+    if(!data || !data.token) return
+    localStorage.setItem('token', data.token)
+    setToken(data.token)
+    setUser({
+      name: data.name,
+      email: data.email,
+      admin: data.admin ? 1 : 0
+    })
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    setToken(null)
+    setUser(null)
+    setUserLoading(false)
+  }
 
   const appStyle = {
     width: '100%',
     minHeight: '100vh',
     overflowX: 'hidden'
+  }
+
+  const loadingScreenStyle = {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffffff',
+    fontSize: '18px',
+    background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.8) 0%, rgba(59, 130, 246, 0.8) 100%)'
   }
 
   return (
@@ -601,7 +648,7 @@ export default function App(){
         user={user}
         onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
         onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
-        onLogout={()=>{ localStorage.removeItem('token'); setToken(null) }}
+        onLogout={handleLogout}
       />
             <HomePage />
           </>
@@ -611,7 +658,7 @@ export default function App(){
             user={user}
             onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
             onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
-            onLogout={()=>{ localStorage.removeItem('token'); setToken(null) }}
+            onLogout={handleLogout}
           />
         } />
         <Route path="/review" element={
@@ -620,7 +667,7 @@ export default function App(){
               user={user}
               onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
               onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
-              onLogout={()=>{ localStorage.removeItem('token'); setToken(null) }}
+              onLogout={handleLogout}
             />
             <Review />
           </>
@@ -630,15 +677,32 @@ export default function App(){
             user={user}
             onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
             onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
-            onLogout={()=>{ localStorage.removeItem('token'); setToken(null) }}
+            onLogout={handleLogout}
           />
+        } />
+        <Route path="/admin" element={
+          userLoading ? (
+            <div style={loadingScreenStyle}>Checking permissions…</div>
+          ) : user?.admin ? (
+            <>
+              <Navbar
+                user={user}
+                onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
+                onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
+                onLogout={handleLogout}
+              />
+              <Admin user={user} />
+            </>
+          ) : (
+            <Navigate to="/" replace />
+          )
         } />
       </Routes>
 
       {showLogin && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'}} onClick={()=>setShowLogin(false)}>
           <div style={{background:'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.3)', padding:32, maxWidth:420, width: '100%', borderRadius: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)'}} onClick={e=>e.stopPropagation()}>
-            <Login onLogin={({token})=>{ localStorage.setItem('token', token); setToken(token); setShowLogin(false) }} />
+            <Login onLogin={(data)=>{ handleAuthSuccess(data); setShowLogin(false) }} />
           </div>
         </div>
       )}
@@ -646,7 +710,7 @@ export default function App(){
       {showSignup && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'}} onClick={()=>setShowSignup(false)}>
           <div style={{background:'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.3)', padding:32, maxWidth:420, width: '100%', borderRadius: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)'}} onClick={e=>e.stopPropagation()}>
-            <Signup onSignup={({token})=>{ localStorage.setItem('token', token); setToken(token); setShowSignup(false) }} />
+            <Signup onSignup={(data)=>{ handleAuthSuccess(data); setShowSignup(false) }} />
           </div>
         </div>
       )}

@@ -23,9 +23,11 @@ void UserCtrl::me(const drogon::HttpRequestPtr &req, std::function<void (const d
     }
 
     std::string name = "";
+    int admin = 0;
     for(const auto &u : arr) {
         if(u["email"].asString() == email) {
             name = u.get("name","").asString();
+            admin = u.get("admin", 0).asInt();
             break;
         }
     }
@@ -36,6 +38,7 @@ void UserCtrl::me(const drogon::HttpRequestPtr &req, std::function<void (const d
     Json::Value me(Json::objectValue);
     me["email"] = email;
     me["name"] = name;
+    me["admin"] = admin;
 
     auto resp = drogon::HttpResponse::newHttpJsonResponse(me);
     cb(resp);

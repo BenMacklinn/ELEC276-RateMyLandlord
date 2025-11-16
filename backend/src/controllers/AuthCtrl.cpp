@@ -203,6 +203,7 @@ void AuthCtrl::loadDb() {
     User user;
     user.email = u["email"].asString();
     user.name  = u.get("name", "").asString();
+    user.admin = u.get("admin", 0).asInt();
 
     // New schema (preferred for demo): password_plain + password_hashed
     if (u.isMember("password_plain")) {
@@ -419,6 +420,7 @@ void AuthCtrl::login(const drogon::HttpRequestPtr &req,
                         u["password_hashed"] = usr.password_hashed;  // real auth
                         u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
                                            ? "argon2id-phc" : "none";
+                        u["admin"] = usr.admin;
                         out.append(u);
                     }
                     std::ofstream f(dbPath_, std::ios::trunc);
@@ -444,6 +446,7 @@ void AuthCtrl::login(const drogon::HttpRequestPtr &req,
     payload["token"] = makeToken(email);
     payload["name"] = it->second.name;
     payload["email"] = email;
+    payload["admin"] = it->second.admin;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(payload);
     cb(resp);
 }
@@ -506,6 +509,7 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
     nu.name  = name;
     nu.password_plain  = password;  // DEMO ONLY
     nu.password_hashed = encoded;   // Argon2id PHC for real auth
+    nu.admin = 0;
     users_[email] = std::move(nu);
     pendingVerifications_.erase(pendingIt);
 
@@ -520,6 +524,7 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
         u["password_hashed"] = usr.password_hashed;  // real auth
         u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
                        ? "argon2id-phc" : "none";
+        u["admin"] = usr.admin;
         out.append(u);
     }
     std::ofstream f(dbPath_, std::ios::trunc);
@@ -530,6 +535,7 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
     payload["token"] = makeToken(email);
     payload["name"] = name;
     payload["email"] = email;
+    payload["admin"] = 0;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(payload);
     cb(resp);
 }

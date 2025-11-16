@@ -49,6 +49,7 @@ private:
         std::string password_plain; // DEMO ONLY, REMOVE IN PRODUCTION
         std::string password_hashed; // $argon2id$ PHC string format
         std::string name;
+        int admin{0};
     };
 
     struct PendingVerification {

@@ -153,6 +153,15 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
           </svg>
           Leaderboard
         </Link>
+        {user?.admin ? (
+          <Link to="/admin" style={navLinkStyle}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l8 3v7c0 6-8 10-8 10s-8-4-8-10V5z"/>
+              <circle cx="12" cy="11" r="3"/>
+            </svg>
+            Admin
+          </Link>
+        ) : null}
         {!user ? (
           <>
             <button onClick={onLoginClick} style={{

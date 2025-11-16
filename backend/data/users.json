@@ -2,6 +2,7 @@
 	{
 		"email" : "jacob.huynh@queensu.ca",
 		"name" : "Jacob",
+		"admin" : 1,
 		"password_hashed" : "$argon2id$v=19$m=65536,t=2,p=1$FKVou5ikf01Y1PhsIO+C5A$xiWjXVn9T1KwQ47HybS3qgrZY5gAlIWsKfODGfTWK9M",
 		"password_plain" : "22mg77",
 		"password_scheme" : "argon2id-phc"

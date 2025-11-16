@@ -1,5 +1,5 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import API from './api'
 
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
@@ -63,31 +63,40 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
 
   return (
     <div style={navStyle}>
-      <a href="/" style={logoStyle}>
+      <Link to="/" style={logoStyle}>
         <img src="/new-logo.png" alt="RateMyLandlord" style={{width: '24px', height: '24px'}} />
         RateMyLandlord
-      </a>
+      </Link>
       <div style={navLinksStyle}>
-        <a href="/" style={navLinkStyle}>
+        <Link to="/" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9,22 9,12 15,12 15,22"/>
           </svg>
           Home
-        </a>
-        <a href="/landlords" style={navLinkStyle}>
+        </Link>
+        <Link to="/landlords" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/>
             <path d="M21 21l-4.35-4.35"/>
           </svg>
           Search
-        </a>
+        </Link>
         <div style={activeNavLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
           </svg>
           Leaderboard
         </div>
+        {user?.admin ? (
+          <Link to="/admin" style={navLinkStyle}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l8 3v7c0 6-8 10-8 10s-8-4-8-10V5z"/>
+              <circle cx="12" cy="11" r="3"/>
+            </svg>
+            Admin
+          </Link>
+        ) : null}
         {!user ? (
           <>
             <button onClick={onLoginClick} style={{
@@ -546,4 +555,3 @@ export default function Leaderboard({user, onLoginClick, onSignupClick, onLogout
     </div>
   )
 }
-
