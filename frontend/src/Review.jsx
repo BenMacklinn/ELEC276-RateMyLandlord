@@ -162,8 +162,8 @@ export default function Review() {
         <form onSubmit={handleSubmit} style={formStyle}>
           <div style={fieldStyle}>
             <label style={labelStyle}>Select Landlord</label>
-            <select 
-              name="landlordId" 
+            <select
+              name="landlordId"
               value={formData.landlordId}
               onChange={handleChange}
               style={selectStyle}

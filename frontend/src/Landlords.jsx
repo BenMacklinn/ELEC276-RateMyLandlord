@@ -2,39 +2,39 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import API from './api'
 
-function ReviewList({ landlordId, onRatingCalculated }) {
+export function ReviewList({ landlordId, onRatingCalculated }) {
   const [reviews, setReviews] = React.useState([])
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
     let ok = true
     API.getLandlordReviews(landlordId)
-      .then(reviews => { 
-        if (ok) { 
+      .then(reviews => {
+        if (ok) {
           setReviews(reviews)
           setLoading(false)
           // compute average and notify parent
           if (onRatingCalculated) {
             const count = reviews.length
-            const avg = count ? (reviews.reduce((s, r) => s + (r.rating||0), 0) / count) : 0
+            const avg = count ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / count) : 0
             onRatingCalculated(parseFloat(avg.toFixed(1)), count)
           }
         }
       })
-      .catch((error) => { 
+      .catch((error) => {
         console.error('Error fetching reviews:', error)
-        if (ok) setLoading(false) 
+        if (ok) setLoading(false)
       })
     return () => { ok = false }
   }, [landlordId, onRatingCalculated])
 
-  if (loading) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>Loading reviews...</div>
-  if (!reviews.length) return <div style={{color: 'rgba(255, 255, 255, 0.8)'}}>No reviews yet</div>
+  if (loading) return <div style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Loading reviews...</div>
+  if (!reviews.length) return <div style={{ color: 'rgba(255, 255, 255, 0.8)' }}>No reviews yet</div>
 
   return (
     <div style={{ marginTop: '12px' }}>
       {reviews.map(review => (
-        <div key={review.id} style={{ 
+        <div key={review.id} style={{
           backgroundColor: 'rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -42,21 +42,21 @@ function ReviewList({ landlordId, onRatingCalculated }) {
           padding: '16px',
           marginBottom: '12px'
         }}>
-          <div style={{ 
-            display: 'flex', 
+          <div style={{
+            display: 'flex',
             justifyContent: 'space-between',
             color: '#ffffff'
           }}>
             <div style={{ fontWeight: 'bold' }}>{review.title}</div>
             <div>Rating: {review.rating}/5</div>
           </div>
-          <div style={{ 
+          <div style={{
             marginTop: '8px',
             color: 'rgba(255, 255, 255, 0.9)'
           }}>{review.review}</div>
-          <div style={{ 
-            fontSize: '0.8em', 
-            color: 'rgba(255, 255, 255, 0.7)', 
+          <div style={{
+            fontSize: '0.8em',
+            color: 'rgba(255, 255, 255, 0.7)',
             marginTop: '8px'
           }}>
             {new Date(review.created_at).toLocaleDateString()}
@@ -67,7 +67,7 @@ function ReviewList({ landlordId, onRatingCalculated }) {
   )
 }
 
-function Navbar({user, onLoginClick, onSignupClick, onLogout}){
+function Navbar({ user, onLoginClick, onSignupClick, onLogout }) {
   const navStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -129,35 +129,35 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   return (
     <div style={navStyle}>
       <Link to="/" style={logoStyle}>
-        <img src="/new-logo.png" alt="RateMyLandlord" style={{width: '24px', height: '24px'}} />
+        <img src="/new-logo.png" alt="RateMyLandlord" style={{ width: '24px', height: '24px' }} />
         RateMyLandlord
       </Link>
       <div style={navLinksStyle}>
         <Link to="/" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9,22 9,12 15,12 15,22"/>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
           </svg>
           Home
         </Link>
         <div style={activeNavLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
           </svg>
           Search
         </div>
         <Link to="/leaderboard" style={navLinkStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
           Leaderboard
         </Link>
         {user?.admin ? (
           <Link to="/admin" style={navLinkStyle}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2l8 3v7c0 6-8 10-8 10s-8-4-8-10V5z"/>
-              <circle cx="12" cy="11" r="3"/>
+              <path d="M12 2l8 3v7c0 6-8 10-8 10s-8-4-8-10V5z" />
+              <circle cx="12" cy="11" r="3" />
             </svg>
             Admin
           </Link>
@@ -180,8 +180,8 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
             }}>Sign up</button>
           </>
         ) : (
-          <div style={{display:'flex', alignItems:'center', gap:8}}>
-            <span style={{color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>Hi, {user.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' }}>Hi, {user.name}</span>
             <button onClick={onLogout} style={{
               ...navLinkStyle,
               backgroundColor: 'rgba(59, 130, 246, 0.8)',
@@ -196,7 +196,7 @@ function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   )
 }
 
-function SearchResults({err, loading, list}){
+function SearchResults({ err, loading, list }) {
   const [expandedCard, setExpandedCard] = React.useState(null)
   const [landlordAvg, setLandlordAvg] = React.useState(null)
   const [landlordReviewCount, setLandlordReviewCount] = React.useState(0)
@@ -434,15 +434,15 @@ function SearchResults({err, loading, list}){
       <div style={resultsStyle}>
         <ul style={gridStyle}>
           {list.map((ll) => (
-            <li 
-              key={ll.landlord_id} 
+            <li
+              key={ll.landlord_id}
               style={itemStyle}
               onClick={() => handleCardClick(ll.landlord_id)}
             >
               {/* Compact view - always visible */}
               <div style={nameStyle}>{ll.name}</div>
               <div style={statsStyle}>
-                <span>{(ll.properties||[]).length} properties</span>
+                <span>{(ll.properties || []).length} properties</span>
                 <span>{ll.contact?.phone || 'No phone'}</span>
               </div>
             </li>
@@ -455,53 +455,53 @@ function SearchResults({err, loading, list}){
         <div style={modalOverlayStyle} onClick={() => setExpandedCard(null)}>
           <div style={modalContentStyle} onClick={e => e.stopPropagation()}>
             <button style={closeButtonStyle} onClick={() => setExpandedCard(null)}>×</button>
-            
+
             {(() => {
               const selectedLandlord = list.find(ll => ll.landlord_id === expandedCard)
               if (!selectedLandlord) return null
-              
+
               return (
                 <>
                   <div style={modalTitleStyle}>{selectedLandlord.name}</div>
-                  
+
                   <div style={modalDetailStyle}>
-                    <strong style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
                       </svg>
                       Email:
                     </strong> {selectedLandlord.contact?.email}
                   </div>
                   <div style={modalDetailStyle}>
-                    <strong style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
                       Phone:
                     </strong> {selectedLandlord.contact?.phone}
                   </div>
                   <div style={modalDetailStyle}>
-                    <strong style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        <polyline points="9,22 9,12 15,12 15,22"/>
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9,22 9,12 15,12 15,22" />
                       </svg>
                       Properties:
-                    </strong> {(selectedLandlord.properties||[]).length}
+                    </strong> {(selectedLandlord.properties || []).length}
                   </div>
-                  
-                  <div style={{marginTop: '30px'}}>
-                    <h3 style={{fontSize: '20px', fontWeight: '600', color: '#ffffff', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>
+
+                  <div style={{ marginTop: '30px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#ffffff', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' }}>
                       Property Listings
                     </h3>
-                    
-                    {(selectedLandlord.properties||[]).map((property, idx) => (
+
+                    {(selectedLandlord.properties || []).map((property, idx) => (
                       <div key={idx} style={modalPropertyStyle}>
                         <div style={propertyTitleStyle}>
                           {property.address?.street}, {property.address?.city}, {property.address?.state}
                         </div>
-                        
+
                         {property.unit_details?.map((unit, unitIdx) => (
                           <div key={unitIdx} style={unitStyle}>
                             <strong>Unit {unit.unit_number}:</strong> {unit.bedrooms} bedroom, {unit.bathrooms} bathroom - ${unit.rent}/month
@@ -510,21 +510,21 @@ function SearchResults({err, loading, list}){
                       </div>
                     ))}
 
-                    <div style={{marginTop: '20px'}}>
+                    <div style={{ marginTop: '20px' }}>
                       <div style={modalDetailStyle}>
-                        <strong style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <strong style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                           </svg>
                           Average Rating:
                         </strong>
                         {selectedLandlord.average_rating ? `${selectedLandlord.average_rating.toFixed(1)} ⭐ (${selectedLandlord.review_count} reviews)` : (landlordAvg ? `${landlordAvg} ⭐ (${landlordReviewCount} reviews)` : 'No ratings yet')}
                       </div>
 
-                      <h3 style={{fontSize: '20px', fontWeight: '600', color: '#ffffff', marginTop: '16px', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'}}>
+                      <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#ffffff', marginTop: '16px', marginBottom: '16px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' }}>
                         Reviews
                       </h3>
-                      <ReviewList landlordId={selectedLandlord.landlord_id} onRatingCalculated={(avg,count)=>{ setLandlordAvg(avg); setLandlordReviewCount(count); }} />
+                      <ReviewList landlordId={selectedLandlord.landlord_id} onRatingCalculated={(avg, count) => { setLandlordAvg(avg); setLandlordReviewCount(count); }} />
                     </div>
                   </div>
                 </>
@@ -537,26 +537,26 @@ function SearchResults({err, loading, list}){
   )
 }
 
-export default function Landlords({user, onLoginClick, onSignupClick, onLogout}){
+export default function Landlords({ user, onLoginClick, onSignupClick, onLogout }) {
   const [q, setQ] = React.useState('')
   const [list, setList] = React.useState([])
   const [err, setErr] = React.useState('')
   const [loading, setLoading] = React.useState(false)
 
-  const doSearch = async (e)=>{
+  const doSearch = async (e) => {
     e && e.preventDefault()
     setErr(''); setLoading(true)
     try {
       const results = await API.searchLandlords(q.trim())
       setList(results)
-    } catch(e){
+    } catch (e) {
       setErr(e.message)
     } finally {
       setLoading(false)
     }
   }
 
-  React.useEffect(()=>{ doSearch() }, [])
+  React.useEffect(() => { doSearch() }, [])
 
   const pageStyle = {
     minHeight: '100vh',
@@ -640,37 +640,37 @@ export default function Landlords({user, onLoginClick, onSignupClick, onLogout})
         }
       `}</style>
       <div style={pageStyle}>
-        <Navbar 
+        <Navbar
           user={user}
           onLoginClick={onLoginClick}
           onSignupClick={onSignupClick}
           onLogout={onLogout}
         />
-        
+
         <div style={headerStyle}>
           <h1 style={titleStyle}>Landlords</h1>
           <p style={subtitleStyle}>Search and browse all available landlords and their properties</p>
-          
+
           <form onSubmit={doSearch} style={searchContainerStyle}>
-          <input
-            value={q}
-            onChange={e=>setQ(e.target.value)}
-            placeholder="Search landlords by name..."
-            style={searchInputStyle}
-          />
-          <button 
-            type="submit"
-            style={searchButtonStyle}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
-            </svg>
-            Search
-          </button>
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search landlords by name..."
+              style={searchInputStyle}
+            />
+            <button
+              type="submit"
+              style={searchButtonStyle}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              Search
+            </button>
           </form>
         </div>
-        
+
         <SearchResults err={err} loading={loading} list={list} />
       </div>
     </>
