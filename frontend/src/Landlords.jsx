@@ -539,8 +539,8 @@ function SearchResults({ err, loading, list }) {
 
 function LandlordRequestSection({ user, currentQuery }) {
   const [landlordName, setLandlordName] = React.useState(currentQuery || '')
-  const [userName, setUserName] = React.useState(user?.name || '')
-  const [userEmail, setUserEmail] = React.useState(user?.email || '')
+  const [landlordEmail, setLandlordEmail] = React.useState('')
+  const [landlordPhone, setLandlordPhone] = React.useState('')
   const [propertyAddress, setPropertyAddress] = React.useState('')
   const [details, setDetails] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
@@ -551,12 +551,6 @@ function LandlordRequestSection({ user, currentQuery }) {
   React.useEffect(() => {
     setLandlordName(currentQuery || '')
   }, [currentQuery])
-
-  // Update name/email when user logs in/out
-  React.useEffect(() => {
-    setUserName(user?.name || '')
-    setUserEmail(user?.email || '')
-  }, [user])
 
   const cardStyle = {
     maxWidth: '800px',
@@ -642,12 +636,18 @@ function LandlordRequestSection({ user, currentQuery }) {
     setErrorMsg('')
     setSuccessMsg('')
 
-    if (!landlordName.trim()) {
-      setErrorMsg('Please enter the landlord name.')
+    // Must be logged in so we can attach username/email automatically
+    if (!user) {
+      setErrorMsg('You must be logged in to submit a landlord request.')
       return
     }
-    if (!userEmail.trim()) {
-      setErrorMsg('Please enter your email so the admin can contact you.')
+
+    // Enforce mandatory landlord contact + property
+    if (!landlordName.trim() ||
+        !landlordEmail.trim() ||
+        !landlordPhone.trim() ||
+        !propertyAddress.trim()) {
+      setErrorMsg('Please fill in landlord name, email, phone, and property address.')
       return
     }
 
@@ -655,14 +655,21 @@ function LandlordRequestSection({ user, currentQuery }) {
     try {
       await API.submitLandlordRequest({
         landlord_name: landlordName.trim(),
-        user_name: userName.trim(),
-        user_email: userEmail.trim(),
+        landlord_email: landlordEmail.trim(),
+        landlord_phone: landlordPhone.trim(),
         property_address: propertyAddress.trim(),
-        details: details.trim()
+        details: details.trim(),
+
+        // Automatically record who submitted the request
+        user_name: user.name,
+        user_email: user.email
       })
+
       setSuccessMsg('Your request has been submitted. Thank you!')
       setDetails('')
       setPropertyAddress('')
+      setLandlordEmail('')
+      setLandlordPhone('')
     } catch (err) {
       setErrorMsg(err.message || 'Failed to submit request')
     } finally {
@@ -677,6 +684,7 @@ function LandlordRequestSection({ user, currentQuery }) {
         Submit a request and an admin will review it and add the landlord to the system.
       </div>
       <form onSubmit={handleSubmit}>
+        {/* Landlord name (still synced to search query) */}
         <div style={formRowStyle}>
           <input
             style={inputStyle}
@@ -685,28 +693,36 @@ function LandlordRequestSection({ user, currentQuery }) {
             onChange={e => setLandlordName(e.target.value)}
           />
         </div>
+
+        {/* Landlord email + phone (mandatory) */}
         <div style={formRowStyle}>
           <input
             style={inputStyle}
-            placeholder="Your name (optional)"
-            value={userName}
-            onChange={e => setUserName(e.target.value)}
+            placeholder="Landlord email"
+            type="email"
+            value={landlordEmail}
+            onChange={e => setLandlordEmail(e.target.value)}
           />
           <input
             style={inputStyle}
-            placeholder="Your email"
-            value={userEmail}
-            onChange={e => setUserEmail(e.target.value)}
+            placeholder="Landlord phone"
+            type="tel"
+            value={landlordPhone}
+            onChange={e => setLandlordPhone(e.target.value)}
           />
         </div>
+
+        {/* Property / properties (mandatory) */}
         <div style={formRowStyle}>
           <input
             style={inputStyle}
-            placeholder="Property address (optional)"
+            placeholder="Properties / property address"
             value={propertyAddress}
             onChange={e => setPropertyAddress(e.target.value)}
           />
         </div>
+
+        {/* Extra details (optional) */}
         <div style={formRowStyle}>
           <textarea
             style={textareaStyle}
@@ -715,6 +731,7 @@ function LandlordRequestSection({ user, currentQuery }) {
             onChange={e => setDetails(e.target.value)}
           />
         </div>
+
         <button type="submit" style={buttonStyle} disabled={submitting}>
           {submitting ? 'Sending…' : 'Submit landlord request'}
         </button>

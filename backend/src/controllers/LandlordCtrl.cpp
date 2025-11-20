@@ -205,7 +205,7 @@ void LandlordCtrl::leaderboard(const drogon::HttpRequestPtr &req,
 void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
                             std::function<void (const drogon::HttpResponsePtr &)> &&cb)
 {
-        auto json = req->getJsonObject();
+    auto json = req->getJsonObject();
     if (!json) {
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k400BadRequest);
@@ -214,17 +214,28 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
         return;
     }
 
+    // Landlord contact info (required)
     std::string landlordName   = (*json)["landlord_name"].asString();
+    std::string landlordEmail  = (*json)["landlord_email"].asString();
+    std::string landlordPhone  = (*json)["landlord_phone"].asString();
+    std::string propertyInfo   = (*json)["property_address"].asString();
+
+    // Requester info (auto-filled by frontend from logged-in user)
     std::string requesterName  = (*json)["user_name"].asString();
     std::string requesterEmail = (*json)["user_email"].asString();
-    std::string propertyInfo   = (*json)["property_address"].asString();
+
     std::string details        = (*json)["details"].asString();
 
-    if (landlordName.empty() || requesterEmail.empty()) {
+    // Enforce mandatory landlord contact + property
+    if (landlordName.empty() ||
+        landlordEmail.empty() ||
+        landlordPhone.empty() ||
+        propertyInfo.empty())
+    {
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k400BadRequest);
         (*resp->getJsonObject())["error"] =
-            "landlord_name and user_email are required";
+            "landlord_name, landlord_email, landlord_phone, and property_address are required";
         cb(resp);
         return;
     }
@@ -259,14 +270,19 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
         std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
 
         Json::Value newReq(Json::objectValue);
-        newReq["id"] = nextId;
-        newReq["landlord_name"] = landlordName;
-        newReq["user_name"] = requesterName;
-        newReq["user_email"] = requesterEmail;
+        newReq["id"]               = nextId;
+        newReq["landlord_name"]    = landlordName;
+        newReq["landlord_email"]   = landlordEmail;
+        newReq["landlord_phone"]   = landlordPhone;
         newReq["property_address"] = propertyInfo;
-        newReq["details"] = details;
-        newReq["created_at"] = buf;
-        newReq["status"] = "pending";
+        newReq["details"]          = details;
+
+        // who submitted the request
+        newReq["user_name"]        = requesterName;
+        newReq["user_email"]       = requesterEmail;
+
+        newReq["created_at"]       = buf;
+        newReq["status"]           = "pending";
 
         db["requests"].append(newReq);
 
@@ -288,6 +304,7 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
     auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
     cb(resp);
 }
+
 
 void LandlordCtrl::listRequests(const drogon::HttpRequestPtr &req,
                                 std::function<void (const drogon::HttpResponsePtr &)> &&cb)
@@ -438,13 +455,13 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
         newLL["landlord_id"] = buf;
         newLL["name"] = reqCopy["landlord_name"].asString();
 
-        // contact = requester's email (placeholder)
+        // contact = landlord's contact details from the request
         Json::Value contact(Json::objectValue);
-        contact["email"] = reqCopy["user_email"].asString();
-        contact["phone"] = "";
+        contact["email"] = reqCopy["landlord_email"].asString();
+        contact["phone"] = reqCopy["landlord_phone"].asString();
         newLL["contact"] = contact;
 
-        // properties (optional)
+        // properties (required in the request, but still guard for safety)
         Json::Value props(Json::arrayValue);
         std::string addr = reqCopy["property_address"].asString();
         if (!addr.empty()) {
@@ -452,9 +469,9 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
             p["property_id"] = "P" + std::to_string(newId);
             Json::Value a(Json::objectValue);
             a["street"] = addr;
-            a["city"] = "";
-            a["state"] = "";
-            a["zip"] = "";
+            a["city"]   = "";
+            a["state"]  = "";
+            a["zip"]    = "";
             p["address"] = a;
             p["unit_details"] = Json::Value(Json::arrayValue);
             props.append(p);

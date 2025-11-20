@@ -272,6 +272,11 @@ export default function LandlordRequests({ user }) {
                           <span style={labelStyle}>Requested by:</span>{' '}
                           {req.user_name || 'Anonymous'} ({req.user_email})
                         </span>
+                         <span>
+                            <span style={labelStyle}>Landlord contact:</span>{' '}
+                            {req.landlord_name || 'Unknown'} · {req.landlord_email || 'no email'} ·{' '}
+                            {req.landlord_phone || 'no phone'}
+                        </span>
                         {req.property_address && (
                           <span>
                             <span style={labelStyle}>Property:</span>{' '}
