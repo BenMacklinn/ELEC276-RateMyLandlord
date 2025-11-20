@@ -20,6 +20,15 @@ public:
                     std::function<void (const drogon::HttpResponsePtr &)> &&cb);
     void submitRequest(const drogon::HttpRequestPtr &req,
                        std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+    void listRequests(const drogon::HttpRequestPtr &req,
+                      std::function<void (const drogon::HttpResponsePtr &)> &&cb);
+    void approveRequest(const drogon::HttpRequestPtr &req,
+                        std::function<void (const drogon::HttpResponsePtr &)> &&cb,
+                        int requestId);
+    void rejectRequest(const drogon::HttpRequestPtr &req,
+                       std::function<void (const drogon::HttpResponsePtr &)> &&cb,
+                       int requestId);
+     
 private:
     std::string dbPath_;
     std::string requestDbPath_;

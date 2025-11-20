@@ -1,4 +1,6 @@
 import React from 'react'
+import API from './api'
+import { Link } from 'react-router-dom'
 
 const defaultTools = [
   {
@@ -106,9 +108,18 @@ export default function Admin({ user }) {
             <div key={tool.title} style={cardStyle}>
               <div style={cardTitleStyle}>{tool.title}</div>
               <div style={cardDescriptionStyle}>{tool.description}</div>
-              <button style={buttonStyle} type="button">
-                {tool.cta}
-              </button>
+
+              {tool.title === 'Landlord Request Inbox' ? (
+                <Link to="/admin/requests">
+                  <button style={buttonStyle} type="button">
+                    {tool.cta}
+                  </button>
+                </Link>
+              ) : (
+                <button style={buttonStyle} type="button">
+                  {tool.cta}
+                </button>
+              )}
             </div>
           ))}
         </div>

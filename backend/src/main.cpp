@@ -201,6 +201,35 @@ int main() {
         review->getForLandlord(req, std::move(cb), id);
       },
       {drogon::Get});
+  
+  // -----------------------------
+  // Admin Landlord Requests
+  // -----------------------------
+  drogon::app().registerHandler(
+      "/api/admin/requests",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb) {
+          landlord->listRequests(req, std::move(cb));
+      },
+      { drogon::Get });
+
+  drogon::app().registerHandler(
+      "/api/admin/requests/{id}/approve",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb,
+                int id) {
+          landlord->approveRequest(req, std::move(cb), id);
+      },
+      { drogon::Post });
+
+  drogon::app().registerHandler(
+      "/api/admin/requests/{id}/reject",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb,
+                int id) {
+          landlord->rejectRequest(req, std::move(cb), id);
+      },
+      { drogon::Post });    
 
   // -----------------------------
   // Run server

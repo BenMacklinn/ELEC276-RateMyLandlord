@@ -7,6 +7,7 @@ import Review from './Review'
 import Leaderboard from './Leaderboard'
 import Admin from './Admin'
 import API from './api'
+import LandlordRequests from './LandlordRequests'
 
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   const navStyle = {
@@ -692,6 +693,23 @@ export default function App(){
                 onLogout={handleLogout}
               />
               <Admin user={user} />
+            </>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
+        <Route path="/admin/requests" element={
+          userLoading ? (
+            <div style={loadingScreenStyle}>Checking permissions…</div>
+          ) : user?.admin ? (
+            <>
+              <Navbar
+                user={user}
+                onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
+                onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
+                onLogout={handleLogout}
+              />
+              <LandlordRequests user={user} />
             </>
           ) : (
             <Navigate to="/" replace />

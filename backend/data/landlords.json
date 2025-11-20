@@ -1,93 +1,127 @@
 {
-  "landlords": [
-    {
-      "landlord_id": "LL001",
-      "name": "Jane Doe",
-      "contact": {
-        "email": "jane.doe@email.com",
-        "phone": "555-123-4567"
-      },
-      "properties": [
-        {
-          "property_id": "P001",
-          "address": {
-            "street": "123 Main Street",
-            "city": "Anytown",
-            "state": "CA",
-            "zip": "12345"
-          },
-          "unit_details": [
-            {
-              "unit_number": "Unit A",
-              "bedrooms": 2,
-              "bathrooms": 1,
-              "rent": 1500
-            },
-            {
-              "unit_number": "Unit B",
-              "bedrooms": 3,
-              "bathrooms": 2,
-              "rent": 2000
-            }
-          ]
-        },
-        {
-          "property_id": "P002",
-          "address": {
-            "street": "456 Oak Avenue",
-            "city": "Anytown",
-            "state": "CA",
-            "zip": "12345"
-          },
-          "unit_details": [
-            {
-              "unit_number": "Single Family Home",
-              "bedrooms": 4,
-              "bathrooms": 2.5,
-              "rent": 2800
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "landlord_id": "LL002",
-      "name": "John Smith",
-      "contact": {
-        "email": "john.smith@email.com",
-        "phone": "555-987-6543"
-      },
-      "properties": [
-        {
-          "property_id": "P003",
-          "address": {
-            "street": "789 Pine Lane",
-            "city": "Otherville",
-            "state": "NY",
-            "zip": "67890"
-          },
-          "unit_details": [
-            {
-              "unit_number": "Apartment 101",
-              "bedrooms": 1,
-              "bathrooms": 1,
-              "rent": 1200
-            },
-            {
-              "unit_number": "Apartment 102",
-              "bedrooms": 2,
-              "bathrooms": 1,
-              "rent": 1600
-            },
-            {
-              "unit_number": "Apartment 201",
-              "bedrooms": 3,
-              "bathrooms": 2,
-              "rent": 2100
-            }
-          ]
-        }
-      ]
-    }
-  ]
+	"landlords" : 
+	[
+		{
+			"contact" : 
+			{
+				"email" : "jane.doe@email.com",
+				"phone" : "555-123-4567"
+			},
+			"landlord_id" : "LL001",
+			"name" : "Jane Doe",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "Anytown",
+						"state" : "CA",
+						"street" : "123 Main Street",
+						"zip" : "12345"
+					},
+					"property_id" : "P001",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 1,
+							"bedrooms" : 2,
+							"rent" : 1500,
+							"unit_number" : "Unit A"
+						},
+						{
+							"bathrooms" : 2,
+							"bedrooms" : 3,
+							"rent" : 2000,
+							"unit_number" : "Unit B"
+						}
+					]
+				},
+				{
+					"address" : 
+					{
+						"city" : "Anytown",
+						"state" : "CA",
+						"street" : "456 Oak Avenue",
+						"zip" : "12345"
+					},
+					"property_id" : "P002",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 2.5,
+							"bedrooms" : 4,
+							"rent" : 2800,
+							"unit_number" : "Single Family Home"
+						}
+					]
+				}
+			]
+		},
+		{
+			"contact" : 
+			{
+				"email" : "john.smith@email.com",
+				"phone" : "555-987-6543"
+			},
+			"landlord_id" : "LL002",
+			"name" : "John Smith",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "Otherville",
+						"state" : "NY",
+						"street" : "789 Pine Lane",
+						"zip" : "67890"
+					},
+					"property_id" : "P003",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 1,
+							"bedrooms" : 1,
+							"rent" : 1200,
+							"unit_number" : "Apartment 101"
+						},
+						{
+							"bathrooms" : 1,
+							"bedrooms" : 2,
+							"rent" : 1600,
+							"unit_number" : "Apartment 102"
+						},
+						{
+							"bathrooms" : 2,
+							"bedrooms" : 3,
+							"rent" : 2100,
+							"unit_number" : "Apartment 201"
+						}
+					]
+				}
+			]
+		},
+		{
+			"contact" : 
+			{
+				"email" : "jacob.huynh@queensu.ca",
+				"phone" : ""
+			},
+			"landlord_id" : "LL003",
+			"name" : "Jacob",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "",
+						"state" : "",
+						"street" : "Bain Lab",
+						"zip" : ""
+					},
+					"property_id" : "P3",
+					"unit_details" : []
+				}
+			]
+		}
+	]
 }
