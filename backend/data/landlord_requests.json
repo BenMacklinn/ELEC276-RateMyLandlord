@@ -1,3 +1,23 @@
 {
-	"requests" : []
+	"requests" : 
+	[
+		{
+			"created_at" : "2025-11-21T21:14:18Z",
+			"details" : "",
+			"id" : 1,
+			"landlord_email" : "anthony123@gmail.com",
+			"landlord_name" : "Anthony",
+			"landlord_phone" : "6767676767",
+			"property_address" : "19 Union Street",
+			"property_city" : "Kingston",
+			"property_state" : "Ontario",
+			"property_zip" : "K7L 3N9",
+			"unit_bathrooms" : 4,
+			"unit_bedrooms" : 20,
+			"unit_number" : "401",
+			"unit_rent" : 1200,
+			"user_email" : "jacob.huynh@queensu.ca",
+			"user_name" : "Jacob"
+		}
+	]
 }
