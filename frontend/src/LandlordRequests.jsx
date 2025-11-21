@@ -277,8 +277,17 @@ export default function LandlordRequests({ user }) {
                   </div>
 
                   {req.details && (
-                    <div style={detailsStyle}>
-                      <span style={labelStyle}>Details: </span>
+                    <div
+                      style={{
+                        ...detailsStyle,
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'break-word',
+                        maxHeight: '120px',
+                        overflowY: 'auto',
+                        paddingRight: '6px'
+                      }}
+                    >
+                      <span style={labelStyle}>Details:</span><br />
                       {req.details}
                     </div>
                   )}

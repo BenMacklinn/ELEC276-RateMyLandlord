@@ -1,3 +1,28 @@
 {
-	"requests" : []
+	"requests" : 
+	[
+		{
+			"created_at" : "2025-11-21T22:36:29Z",
+			"details" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+			"id" : 1,
+			"landlord_email" : "aaa@gmail.com",
+			"landlord_name" : "aaa",
+			"landlord_phone" : "aaa",
+			"properties" : 
+			[
+				{
+					"property_address" : "1",
+					"property_city" : "6",
+					"property_state" : "6",
+					"property_zip" : "6",
+					"unit_bathrooms" : 6,
+					"unit_bedrooms" : 6,
+					"unit_number" : "6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+					"unit_rent" : 6
+				}
+			],
+			"user_email" : "jacob.huynh@queensu.ca",
+			"user_name" : "Jacob"
+		}
+	]
 }

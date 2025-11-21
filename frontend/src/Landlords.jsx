@@ -928,8 +928,13 @@ function LandlordRequestSection({ user, currentQuery }) {
             style={textareaStyle}
             placeholder="Any extra details you’d like the admin to know (optional)…"
             value={details}
+            maxLength={250}
             onChange={e => setDetails(e.target.value)}
           />
+
+          <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+            {details.length}/250 characters
+          </div>
         </div>
 
         <button type="submit" style={buttonStyle} disabled={submitting}>
