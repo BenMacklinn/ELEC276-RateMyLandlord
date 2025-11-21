@@ -96,27 +96,6 @@ export default function LandlordRequests({ user }) {
     marginTop: '4px'
   }
 
-  const statusPillStyle = (status) => ({
-    padding: '4px 10px',
-    borderRadius: '999px',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.03em',
-    backgroundColor:
-      status === 'approved'
-        ? 'rgba(22, 163, 74, 0.2)'
-        : status === 'rejected'
-        ? 'rgba(220, 38, 38, 0.2)'
-        : 'rgba(234, 179, 8, 0.2)',
-    border:
-      status === 'approved'
-        ? '1px solid rgba(74, 222, 128, 0.8)'
-        : status === 'rejected'
-        ? '1px solid rgba(248, 113, 113, 0.8)'
-        : '1px solid rgba(252, 211, 77, 0.8)'
-  })
-
   const buttonRowStyle = {
     display: 'flex',
     gap: '8px',
@@ -228,10 +207,6 @@ export default function LandlordRequests({ user }) {
     }
   }
 
-  const pendingRequests = requests.filter(
-    (r) => !r.status || r.status === 'pending'
-  )
-
   return (
     <div style={pageStyle}>
       <div style={panelStyle}>
@@ -243,7 +218,8 @@ export default function LandlordRequests({ user }) {
             removes it from the pending queue.
           </p>
           <p style={infoTextStyle}>
-            Only requests with status <strong>pending</strong> appear here.
+            All outstanding requests appear here. Once you approve or reject a request,
+            it is removed from this list.
           </p>
         </header>
 
@@ -251,11 +227,11 @@ export default function LandlordRequests({ user }) {
 
         {loading ? (
           <div style={emptyStyle}>Loading landlord requests…</div>
-        ) : pendingRequests.length === 0 ? (
+        ) : requests.length === 0 ? (
           <div style={emptyStyle}>No pending landlord requests.</div>
         ) : (
           <div style={listStyle}>
-            {pendingRequests.map((req) => {
+            {requests.map((req) => {
               const createdAt = req.created_at
                 ? new Date(req.created_at).toLocaleString()
                 : 'Unknown'
@@ -272,10 +248,10 @@ export default function LandlordRequests({ user }) {
                           <span style={labelStyle}>Requested by:</span>{' '}
                           {req.user_name || 'Anonymous'} ({req.user_email})
                         </span>
-                         <span>
-                            <span style={labelStyle}>Landlord contact:</span>{' '}
-                            {req.landlord_name || 'Unknown'} · {req.landlord_email || 'no email'} ·{' '}
-                            {req.landlord_phone || 'no phone'}
+                        <span>
+                          <span style={labelStyle}>Landlord contact:</span>{' '}
+                          {req.landlord_name || 'Unknown'} · {req.landlord_email || 'no email'} ·{' '}
+                          {req.landlord_phone || 'no phone'}
                         </span>
                         {req.property_address && (
                           <span>
@@ -287,9 +263,6 @@ export default function LandlordRequests({ user }) {
                           <span style={labelStyle}>Created:</span> {createdAt}
                         </span>
                       </div>
-                    </div>
-                    <div style={statusPillStyle(req.status || 'pending')}>
-                      {req.status || 'pending'}
                     </div>
                   </div>
 

@@ -103,23 +103,93 @@
 		{
 			"contact" : 
 			{
-				"email" : "jacob.huynh@queensu.ca",
-				"phone" : ""
+				"email" : "whitehouse@gmail.com",
+				"phone" : "61367676767"
 			},
 			"landlord_id" : "LL003",
-			"name" : "Jacob",
+			"name" : "Donald Trump",
 			"properties" : 
 			[
 				{
 					"address" : 
 					{
-						"city" : "",
-						"state" : "",
-						"street" : "Bain Lab",
-						"zip" : ""
+						"city" : "Washington",
+						"state" : "DC",
+						"street" : "White House Street",
+						"zip" : "67676767"
 					},
 					"property_id" : "P3",
-					"unit_details" : []
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 1,
+							"bedrooms" : 1,
+							"rent" : 12,
+							"unit_number" : "101"
+						}
+					]
+				}
+			]
+		},
+		{
+			"contact" : 
+			{
+				"email" : "whitehouse@gmail.com",
+				"phone" : "61367676767"
+			},
+			"landlord_id" : "LL004",
+			"name" : "Donald Trump",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "Washington",
+						"state" : "DC",
+						"street" : "White House Street",
+						"zip" : "67676767"
+					},
+					"property_id" : "P4",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 1,
+							"bedrooms" : 1,
+							"rent" : 12,
+							"unit_number" : "101"
+						}
+					]
+				}
+			]
+		},
+		{
+			"contact" : 
+			{
+				"email" : "3@3.com",
+				"phone" : "3"
+			},
+			"landlord_id" : "LL005",
+			"name" : "3",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "3",
+						"state" : "3",
+						"street" : "3",
+						"zip" : "3"
+					},
+					"property_id" : "P5",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 3,
+							"bedrooms" : 3,
+							"rent" : 3,
+							"unit_number" : "3"
+						}
+					]
 				}
 			]
 		}

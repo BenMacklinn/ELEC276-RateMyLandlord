@@ -543,6 +543,14 @@ function LandlordRequestSection({ user, currentQuery }) {
   const [landlordPhone, setLandlordPhone] = React.useState('')
   const [propertyAddress, setPropertyAddress] = React.useState('')
   const [details, setDetails] = React.useState('')
+  const [propertyCity, setPropertyCity] = React.useState('')
+  const [propertyState, setPropertyState] = React.useState('')
+  const [propertyZip, setPropertyZip] = React.useState('')
+
+  const [unitNumber, setUnitNumber] = React.useState('')
+  const [unitBedrooms, setUnitBedrooms] = React.useState('')
+  const [unitBathrooms, setUnitBathrooms] = React.useState('')
+  const [unitRent, setUnitRent] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
   const [successMsg, setSuccessMsg] = React.useState('')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -643,11 +651,20 @@ function LandlordRequestSection({ user, currentQuery }) {
     }
 
     // Enforce mandatory landlord contact + property
-    if (!landlordName.trim() ||
-        !landlordEmail.trim() ||
-        !landlordPhone.trim() ||
-        !propertyAddress.trim()) {
-      setErrorMsg('Please fill in landlord name, email, phone, and property address.')
+    if (
+      !landlordName.trim() ||
+      !landlordEmail.trim() ||
+      !landlordPhone.trim() ||
+      !propertyAddress.trim() ||
+      !propertyCity.trim() ||
+      !propertyState.trim() ||
+      !propertyZip.trim() ||
+      !unitNumber.trim() ||
+      !unitBedrooms.trim() ||
+      !unitBathrooms.trim() ||
+      !unitRent.trim()
+    ) {
+      setErrorMsg('Please fill in all required fields: landlord info, full address, and unit details.')
       return
     }
 
@@ -657,7 +674,17 @@ function LandlordRequestSection({ user, currentQuery }) {
         landlord_name: landlordName.trim(),
         landlord_email: landlordEmail.trim(),
         landlord_phone: landlordPhone.trim(),
+
         property_address: propertyAddress.trim(),
+        property_city: propertyCity.trim(),
+        property_state: propertyState.trim(),
+        property_zip: propertyZip.trim(),
+
+        unit_number: unitNumber.trim(),
+        unit_bedrooms: parseInt(unitBedrooms, 10),
+        unit_bathrooms: parseInt(unitBathrooms, 10),
+        unit_rent: parseInt(unitRent, 10),
+
         details: details.trim(),
 
         // Automatically record who submitted the request
@@ -670,6 +697,13 @@ function LandlordRequestSection({ user, currentQuery }) {
       setPropertyAddress('')
       setLandlordEmail('')
       setLandlordPhone('')
+      setPropertyCity('')
+      setPropertyState('')
+      setPropertyZip('')
+      setUnitNumber('')
+      setUnitBedrooms('')
+      setUnitBathrooms('')
+      setUnitRent('')
     } catch (err) {
       setErrorMsg(err.message || 'Failed to submit request')
     } finally {
@@ -719,6 +753,64 @@ function LandlordRequestSection({ user, currentQuery }) {
             placeholder="Properties / property address"
             value={propertyAddress}
             onChange={e => setPropertyAddress(e.target.value)}
+          />
+        </div>
+
+        {/* Property address details */}
+        <div style={formRowStyle}>
+          <input
+            style={inputStyle}
+            placeholder="City"
+            value={propertyCity}
+            onChange={e => setPropertyCity(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder="State / Province"
+            value={propertyState}
+            onChange={e => setPropertyState(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder="ZIP / Postal code"
+            value={propertyZip}
+            onChange={e => setPropertyZip(e.target.value)}
+          />
+        </div>
+
+        {/* Unit details (at least one unit) */}
+        <div style={formRowStyle}>
+          <input
+            style={inputStyle}
+            placeholder="Unit number (e.g., Apartment 101)"
+            value={unitNumber}
+            onChange={e => setUnitNumber(e.target.value)}
+          />
+        </div>
+        <div style={formRowStyle}>
+          <input
+            style={inputStyle}
+            placeholder="Bedrooms"
+            type="number"
+            min="0"
+            value={unitBedrooms}
+            onChange={e => setUnitBedrooms(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder="Bathrooms"
+            type="number"
+            min="0"
+            value={unitBathrooms}
+            onChange={e => setUnitBathrooms(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder="Rent per month"
+            type="number"
+            min="0"
+            value={unitRent}
+            onChange={e => setUnitRent(e.target.value)}
           />
         </div>
 

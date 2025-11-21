@@ -225,17 +225,30 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
     std::string requesterEmail = (*json)["user_email"].asString();
 
     std::string details        = (*json)["details"].asString();
+    std::string propertyCity   = (*json)["property_city"].asString();
+    std::string propertyState  = (*json)["property_state"].asString();
+    std::string propertyZip    = (*json)["property_zip"].asString();
+
+    // Unit details (single unit for now)
+    std::string unitNumber     = (*json)["unit_number"].asString();
+    int unitBedrooms           = (*json)["unit_bedrooms"].asInt();
+    int unitBathrooms          = (*json)["unit_bathrooms"].asInt();
+    int unitRent               = (*json)["unit_rent"].asInt();
 
     // Enforce mandatory landlord contact + property
     if (landlordName.empty() ||
         landlordEmail.empty() ||
         landlordPhone.empty() ||
-        propertyInfo.empty())
+        propertyInfo.empty() ||
+        propertyCity.empty() ||
+        propertyState.empty() ||
+        propertyZip.empty() ||
+        unitNumber.empty())
     {
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k400BadRequest);
         (*resp->getJsonObject())["error"] =
-            "landlord_name, landlord_email, landlord_phone, and property_address are required";
+            "landlord_name, landlord_email, landlord_phone, property_address, city/state/zip, and unit_number are required";
         cb(resp);
         return;
     }
@@ -276,13 +289,18 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
         newReq["landlord_phone"]   = landlordPhone;
         newReq["property_address"] = propertyInfo;
         newReq["details"]          = details;
-
+        newReq["property_city"]    = propertyCity;
+        newReq["property_state"]   = propertyState;
+        newReq["property_zip"]     = propertyZip;
+        newReq["unit_number"]      = unitNumber;
+        newReq["unit_bedrooms"]    = unitBedrooms;
+        newReq["unit_bathrooms"]   = unitBathrooms;
+        newReq["unit_rent"]        = unitRent;
         // who submitted the request
         newReq["user_name"]        = requesterName;
         newReq["user_email"]       = requesterEmail;
 
         newReq["created_at"]       = buf;
-        newReq["status"]           = "pending";
 
         db["requests"].append(newReq);
 
@@ -373,8 +391,14 @@ void LandlordCtrl::rejectRequest(const drogon::HttpRequestPtr &req,
             return;
         }
 
-        // mark rejected
-        requestsDb["requests"][foundIndex]["status"] = "rejected";
+        // Remove this request from the array entirely
+        Json::Value newArr(Json::arrayValue);
+        for (Json::ArrayIndex i = 0; i < arr.size(); ++i) {
+            if (i != foundIndex) {
+                newArr.append(arr[i]);
+            }
+        }
+        requestsDb["requests"] = newArr;
 
         std::ofstream out(requestDbPath_);
         out << requestsDb;
@@ -383,7 +407,6 @@ void LandlordCtrl::rejectRequest(const drogon::HttpRequestPtr &req,
     Json::Value body(Json::objectValue);
     body["ok"] = true;
     body["id"] = requestId;
-    body["status"] = "rejected";
     auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
     cb(resp);
 }
@@ -405,6 +428,10 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
         if (rf.good()) {
             rf >> requestsDb;
         } else {
+            requestsDb["requests"] = Json::Value(Json::arrayValue);
+        }
+
+        if (!requestsDb.isMember("requests") || !requestsDb["requests"].isArray()) {
             requestsDb["requests"] = Json::Value(Json::arrayValue);
         }
 
@@ -463,25 +490,41 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
 
         // properties (required in the request, but still guard for safety)
         Json::Value props(Json::arrayValue);
-        std::string addr = reqCopy["property_address"].asString();
-        if (!addr.empty()) {
+        std::string street = reqCopy["property_address"].asString();
+        if (!street.empty()) {
             Json::Value p(Json::objectValue);
             p["property_id"] = "P" + std::to_string(newId);
+
+            // Address details from request (new fields)
             Json::Value a(Json::objectValue);
-            a["street"] = addr;
-            a["city"]   = "";
-            a["state"]  = "";
-            a["zip"]    = "";
+            a["street"] = street;
+            a["city"]   = reqCopy["property_city"].asString();
+            a["state"]  = reqCopy["property_state"].asString();
+            a["zip"]    = reqCopy["property_zip"].asString();
             p["address"] = a;
-            p["unit_details"] = Json::Value(Json::arrayValue);
+
+            // Unit details (single unit for now)
+            Json::Value units(Json::arrayValue);
+            std::string unitNumber = reqCopy["unit_number"].asString();
+            if (!unitNumber.empty()) {
+                Json::Value u(Json::objectValue);
+                u["unit_number"] = unitNumber;
+                u["bedrooms"]    = reqCopy["unit_bedrooms"].asInt();
+                u["bathrooms"]   = reqCopy["unit_bathrooms"].asInt();
+                u["rent"]        = reqCopy["unit_rent"].asInt();
+                units.append(u);
+            }
+            p["unit_details"] = units;
+
             props.append(p);
         }
         newLL["properties"] = props;
 
         landlordsDb["landlords"].append(newLL);
 
-        // mark request approved
-        requestsDb["requests"][foundIndex]["status"] = "approved";
+        // Remove the request completely instead of marking it approved
+        Json::Value removed;
+        arr.removeIndex(foundIndex, &removed);
 
         // write both files
         std::ofstream outReq(requestDbPath_);
@@ -494,7 +537,6 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
     Json::Value body(Json::objectValue);
     body["ok"] = true;
     body["id"] = requestId;
-    body["status"] = "approved";
     auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
     cb(resp);
 }
