@@ -99,6 +99,56 @@
 					]
 				}
 			]
+		},
+		{
+			"contact" : 
+			{
+				"email" : "anthony@gmail.com",
+				"phone" : "67676767667"
+			},
+			"landlord_id" : "LL003",
+			"name" : "Anthony",
+			"properties" : 
+			[
+				{
+					"address" : 
+					{
+						"city" : "Kingston",
+						"state" : "Ontario",
+						"street" : "19 Union Street",
+						"zip" : "KNL 1P0"
+					},
+					"property_id" : "P3_1",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 5,
+							"bedrooms" : 30,
+							"rent" : 1200,
+							"unit_number" : "100"
+						}
+					]
+				},
+				{
+					"address" : 
+					{
+						"city" : "Kingston",
+						"state" : "Ontario",
+						"street" : "455 Brock Street",
+						"zip" : "KPA 9W4"
+					},
+					"property_id" : "P3_2",
+					"unit_details" : 
+					[
+						{
+							"bathrooms" : 4,
+							"bedrooms" : 4,
+							"rent" : 2000,
+							"unit_number" : "200"
+						}
+					]
+				}
+			]
 		}
 	]
 }

@@ -218,39 +218,101 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
     std::string landlordName   = (*json)["landlord_name"].asString();
     std::string landlordEmail  = (*json)["landlord_email"].asString();
     std::string landlordPhone  = (*json)["landlord_phone"].asString();
-    std::string propertyInfo   = (*json)["property_address"].asString();
 
     // Requester info (auto-filled by frontend from logged-in user)
     std::string requesterName  = (*json)["user_name"].asString();
     std::string requesterEmail = (*json)["user_email"].asString();
 
     std::string details        = (*json)["details"].asString();
-    std::string propertyCity   = (*json)["property_city"].asString();
-    std::string propertyState  = (*json)["property_state"].asString();
-    std::string propertyZip    = (*json)["property_zip"].asString();
 
-    // Unit details (single unit for now)
-    std::string unitNumber     = (*json)["unit_number"].asString();
-    int unitBedrooms           = (*json)["unit_bedrooms"].asInt();
-    int unitBathrooms          = (*json)["unit_bathrooms"].asInt();
-    int unitRent               = (*json)["unit_rent"].asInt();
-
-    // Enforce mandatory landlord contact + property
-    if (landlordName.empty() ||
-        landlordEmail.empty() ||
-        landlordPhone.empty() ||
-        propertyInfo.empty() ||
-        propertyCity.empty() ||
-        propertyState.empty() ||
-        propertyZip.empty() ||
-        unitNumber.empty())
-    {
+    // Enforce mandatory landlord contact
+    if (landlordName.empty() || landlordEmail.empty() || landlordPhone.empty()) {
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k400BadRequest);
         (*resp->getJsonObject())["error"] =
-            "landlord_name, landlord_email, landlord_phone, property_address, city/state/zip, and unit_number are required";
+            "landlord_name, landlord_email, and landlord_phone are required";
         cb(resp);
         return;
+    }
+
+    // Normalized properties array
+    Json::Value properties(Json::arrayValue);
+
+    // Preferred path: "properties" is an array from the frontend
+    if (json->isMember("properties") && (*json)["properties"].isArray() && (*json)["properties"].size() > 0) {
+        const auto &props = (*json)["properties"];
+        for (const auto &p : props) {
+            std::string propertyAddress = p["property_address"].asString();
+            std::string propertyCity    = p["property_city"].asString();
+            std::string propertyState   = p["property_state"].asString();
+            std::string propertyZip     = p["property_zip"].asString();
+
+            std::string unitNumber      = p["unit_number"].asString();
+            int unitBedrooms            = p["unit_bedrooms"].asInt();
+            int unitBathrooms           = p["unit_bathrooms"].asInt();
+            int unitRent                = p["unit_rent"].asInt();
+
+            if (propertyAddress.empty() ||
+                propertyCity.empty() ||
+                propertyState.empty() ||
+                propertyZip.empty() ||
+                unitNumber.empty())
+            {
+                auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+                resp->setStatusCode(drogon::k400BadRequest);
+                (*resp->getJsonObject())["error"] =
+                    "Each property must include address, city/state/zip, and unit details";
+                cb(resp);
+                return;
+            }
+
+            Json::Value prop(Json::objectValue);
+            prop["property_address"] = propertyAddress;
+            prop["property_city"]    = propertyCity;
+            prop["property_state"]   = propertyState;
+            prop["property_zip"]     = propertyZip;
+            prop["unit_number"]      = unitNumber;
+            prop["unit_bedrooms"]    = unitBedrooms;
+            prop["unit_bathrooms"]   = unitBathrooms;
+            prop["unit_rent"]        = unitRent;
+            properties.append(prop);
+        }
+    } else {
+        // Backwards-compatible path: single-property fields
+        std::string propertyInfo   = (*json)["property_address"].asString();
+        std::string propertyCity   = (*json)["property_city"].asString();
+        std::string propertyState  = (*json)["property_state"].asString();
+        std::string propertyZip    = (*json)["property_zip"].asString();
+
+        std::string unitNumber     = (*json)["unit_number"].asString();
+        int unitBedrooms           = (*json)["unit_bedrooms"].asInt();
+        int unitBathrooms          = (*json)["unit_bathrooms"].asInt();
+        int unitRent               = (*json)["unit_rent"].asInt();
+
+        if (propertyInfo.empty() ||
+            propertyCity.empty() ||
+            propertyState.empty() ||
+            propertyZip.empty() ||
+            unitNumber.empty())
+        {
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+            resp->setStatusCode(drogon::k400BadRequest);
+            (*resp->getJsonObject())["error"] =
+                "At least one property with address, city/state/zip, and unit details is required";
+            cb(resp);
+            return;
+        }
+
+        Json::Value prop(Json::objectValue);
+        prop["property_address"] = propertyInfo;
+        prop["property_city"]    = propertyCity;
+        prop["property_state"]   = propertyState;
+        prop["property_zip"]     = propertyZip;
+        prop["unit_number"]      = unitNumber;
+        prop["unit_bedrooms"]    = unitBedrooms;
+        prop["unit_bathrooms"]   = unitBathrooms;
+        prop["unit_rent"]        = unitRent;
+        properties.append(prop);
     }
 
     Json::Value db;
@@ -283,24 +345,20 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
         std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
 
         Json::Value newReq(Json::objectValue);
-        newReq["id"]               = nextId;
-        newReq["landlord_name"]    = landlordName;
-        newReq["landlord_email"]   = landlordEmail;
-        newReq["landlord_phone"]   = landlordPhone;
-        newReq["property_address"] = propertyInfo;
-        newReq["details"]          = details;
-        newReq["property_city"]    = propertyCity;
-        newReq["property_state"]   = propertyState;
-        newReq["property_zip"]     = propertyZip;
-        newReq["unit_number"]      = unitNumber;
-        newReq["unit_bedrooms"]    = unitBedrooms;
-        newReq["unit_bathrooms"]   = unitBathrooms;
-        newReq["unit_rent"]        = unitRent;
-        // who submitted the request
-        newReq["user_name"]        = requesterName;
-        newReq["user_email"]       = requesterEmail;
+        newReq["id"]             = nextId;
+        newReq["landlord_name"]  = landlordName;
+        newReq["landlord_email"] = landlordEmail;
+        newReq["landlord_phone"] = landlordPhone;
+        newReq["details"]        = details;
 
-        newReq["created_at"]       = buf;
+        // Save full properties array (no extra top-level property_* fields)
+        newReq["properties"]     = properties;
+
+        // who submitted the request
+        newReq["user_name"]      = requesterName;
+        newReq["user_email"]     = requesterEmail;
+        newReq["created_at"]     = buf;
+
 
         db["requests"].append(newReq);
 
@@ -488,38 +546,75 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
         contact["phone"] = reqCopy["landlord_phone"].asString();
         newLL["contact"] = contact;
 
-        // properties (required in the request, but still guard for safety)
+        // Build properties from the request.
         Json::Value props(Json::arrayValue);
-        std::string street = reqCopy["property_address"].asString();
-        if (!street.empty()) {
-            Json::Value p(Json::objectValue);
-            p["property_id"] = "P" + std::to_string(newId);
+        Json::Value propsFromReq = reqCopy["properties"];
 
-            // Address details from request (new fields)
-            Json::Value a(Json::objectValue);
-            a["street"] = street;
-            a["city"]   = reqCopy["property_city"].asString();
-            a["state"]  = reqCopy["property_state"].asString();
-            a["zip"]    = reqCopy["property_zip"].asString();
-            p["address"] = a;
+        if (propsFromReq.isArray() && propsFromReq.size() > 0) {
+            int propIndex = 0;
+            for (const auto &rp : propsFromReq) {
+                std::string street = rp["property_address"].asString();
+                if (street.empty()) continue;
 
-            // Unit details (single unit for now)
-            Json::Value units(Json::arrayValue);
-            std::string unitNumber = reqCopy["unit_number"].asString();
-            if (!unitNumber.empty()) {
-                Json::Value u(Json::objectValue);
-                u["unit_number"] = unitNumber;
-                u["bedrooms"]    = reqCopy["unit_bedrooms"].asInt();
-                u["bathrooms"]   = reqCopy["unit_bathrooms"].asInt();
-                u["rent"]        = reqCopy["unit_rent"].asInt();
-                units.append(u);
+                Json::Value p(Json::objectValue);
+
+                // property_id e.g. P1_1, P1_2...
+                char pid[32];
+                snprintf(pid, sizeof(pid), "P%d_%d", newId, ++propIndex);
+                p["property_id"] = pid;
+
+                Json::Value a(Json::objectValue);
+                a["street"] = street;
+                a["city"]   = rp["property_city"].asString();
+                a["state"]  = rp["property_state"].asString();
+                a["zip"]    = rp["property_zip"].asString();
+                p["address"] = a;
+
+                Json::Value units(Json::arrayValue);
+                std::string unitNumber = rp["unit_number"].asString();
+                if (!unitNumber.empty()) {
+                    Json::Value u(Json::objectValue);
+                    u["unit_number"] = unitNumber;
+                    u["bedrooms"]    = rp["unit_bedrooms"].asInt();
+                    u["bathrooms"]   = rp["unit_bathrooms"].asInt();
+                    u["rent"]        = rp["unit_rent"].asInt();
+                    units.append(u);
+                }
+                p["unit_details"] = units;
+
+                props.append(p);
             }
-            p["unit_details"] = units;
+        } else {
+            // Fallback to legacy single-property fields
+            Json::Value p(Json::objectValue);
+            std::string street = reqCopy["property_address"].asString();
+            if (!street.empty()) {
+                p["property_id"] = "P" + std::to_string(newId);
 
-            props.append(p);
+                Json::Value a(Json::objectValue);
+                a["street"] = street;
+                a["city"]   = reqCopy["property_city"].asString();
+                a["state"]  = reqCopy["property_state"].asString();
+                a["zip"]    = reqCopy["property_zip"].asString();
+                p["address"] = a;
+
+                Json::Value units(Json::arrayValue);
+                std::string unitNumber = reqCopy["unit_number"].asString();
+                if (!unitNumber.empty()) {
+                    Json::Value u(Json::objectValue);
+                    u["unit_number"] = unitNumber;
+                    u["bedrooms"]    = reqCopy["unit_bedrooms"].asInt();
+                    u["bathrooms"]   = reqCopy["unit_bathrooms"].asInt();
+                    u["rent"]        = reqCopy["unit_rent"].asInt();
+                    units.append(u);
+                }
+                p["unit_details"] = units;
+
+                props.append(p);
+            }
         }
-        newLL["properties"] = props;
 
+        newLL["properties"] = props;
         landlordsDb["landlords"].append(newLL);
 
         // Remove the request completely instead of marking it approved

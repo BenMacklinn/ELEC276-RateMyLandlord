@@ -113,12 +113,11 @@ const API = {
     return j
   },
 
-  async rejectLandlordRequest(id, reason) {
-    const body = reason ? { reason } : {}
+    async rejectLandlordRequest(id) {
     const res = await fetch(`/api/admin/requests/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({}) // no reason, just reject
     })
     const j = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(j.error || 'Failed to reject request')

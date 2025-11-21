@@ -188,17 +188,15 @@ export default function LandlordRequests({ user }) {
     }
   }
 
-  const handleReject = async (id) => {
-    const reason = window.prompt(
-      'Optional: provide a reason for rejecting this request (or leave blank):',
-      ''
-    )
-    if (reason === null) return // user cancelled
+    const handleReject = async (id) => {
+    // Optional: simple confirmation without a text prompt
+    const ok = window.confirm('Are you sure you want to reject this request?')
+    if (!ok) return
 
     setActionId(id)
     setError('')
     try {
-      await API.rejectLandlordRequest(id, reason.trim())
+      await API.rejectLandlordRequest(id)
       setRequests((prev) => prev.filter((r) => r.id !== id))
     } catch (e) {
       setError(e.message || 'Failed to reject request')
@@ -253,11 +251,23 @@ export default function LandlordRequests({ user }) {
                           {req.landlord_name || 'Unknown'} · {req.landlord_email || 'no email'} ·{' '}
                           {req.landlord_phone || 'no phone'}
                         </span>
-                        {req.property_address && (
+                        {Array.isArray(req.properties) && req.properties.length > 0 ? (
                           <span>
-                            <span style={labelStyle}>Property:</span>{' '}
-                            {req.property_address}
+                            <span style={labelStyle}>Properties:</span>{' '}
+                            {req.properties.map((p, idx) => (
+                              <span key={idx}>
+                                {p.property_address}
+                                {idx < req.properties.length - 1 ? '; ' : ''}
+                              </span>
+                            ))}
                           </span>
+                        ) : (
+                          req.property_address && (
+                            <span>
+                              <span style={labelStyle}>Property:</span>{' '}
+                              {req.property_address}
+                            </span>
+                          )
                         )}
                         <span>
                           <span style={labelStyle}>Created:</span> {createdAt}
