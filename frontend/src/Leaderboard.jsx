@@ -386,88 +386,168 @@ function LandlordModal({ landlord, onClose }) {
 
 
 export default function Leaderboard({ user, onLoginClick, onSignupClick, onLogout }) {
-  const navigate = useNavigate()
-  const [leaderboard, setLeaderboard] = React.useState([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState('')
-  const [selectedLandlord, setSelectedLandlord] = React.useState(null)
+  const navigate = useNavigate();
+  const [leaderboard, setLeaderboard] = React.useState([]);
+  const [sortedLeaderboard, setSortedLeaderboard] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [selectedLandlord, setSelectedLandlord] = React.useState(null);
+  const [sortMethod, setSortMethod] = React.useState("highest");
 
   React.useEffect(() => {
     API.getLeaderboard()
-      .then(data => setLeaderboard(data))
+      .then(data => {
+        setLeaderboard(data);
+        setSortedLeaderboard(sortList(data, "highest"));
+      })
       .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Sorting helper
+  const sortList = (list, method) => {
+    const sorted = [...list];
+
+    if (method === "highest") {
+      sorted.sort((a, b) => b.average_rating - a.average_rating);
+    }
+
+    else if (method === "lowest") {
+      sorted.sort((a, b) => a.average_rating - b.average_rating);
+    }
+
+    else if (method === "mostReviews") {
+      sorted.sort((a, b) => b.review_count - a.review_count);
+    }
+
+    else if (method === "fewestReviews") {
+      sorted.sort((a, b) => a.review_count - b.review_count);
+    }
+
+    return sorted;
+  };
+
+  // Update when sort method changes
+  React.useEffect(() => {
+    setSortedLeaderboard(sortList(leaderboard, sortMethod));
+  }, [sortMethod, leaderboard]);
 
   const pageStyle = {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, rgba(96,165,250,0.8) 0%, rgba(59,130,246,0.8) 100%), url("/hero-image.jpg")',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center'
-  }
+    minHeight: "100vh",
+    background:
+      'linear-gradient(135deg, rgba(96,165,250,0.8) 0%, rgba(59,130,246,0.8) 100%), url("/hero-image.jpg")',
+    backgroundSize: "cover",
+    backgroundPosition: "center"
+  };
 
   const contentStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '120px 24px 40px'
-  }
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "120px 24px 40px"
+  };
 
-  const headerStyle = { textAlign: 'center', marginBottom: '48px' }
+  const headerStyle = { textAlign: "center", marginBottom: "32px" };
 
   const titleStyle = {
-    fontSize: '3rem',
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: '12px'
-  }
+    fontSize: "3rem",
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: "8px"
+  };
 
   const subtitleStyle = {
-    fontSize: '1.1rem',
-    color: '#fff',
-    opacity: 0.95
-  }
+    fontSize: "1.1rem",
+    color: "#fff",
+    opacity: 0.95,
+    marginBottom: "20px"
+  };
 
-  const listStyle = { display: 'flex', flexDirection: 'column', gap: '20px' }
+  // Sort dropdown style
+  const dropdownContainerStyle = {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: "24px",
+  };
 
-  const errorStyle = {
-    color: '#dc2626',
-    backgroundColor: 'rgba(254,242,242,0.95)',
-    padding: '16px 20px',
-    borderRadius: '12px',
-    marginBottom: '24px'
-  }
+  const dropdownStyle = {
+    padding: "10px 16px",
+    borderRadius: "12px",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
+    color: "#fff",
+    fontSize: "16px",
+    cursor: "pointer",
+    outline: "none",
+    textAlign: "center",
 
-  const loadingStyle = { textAlign: 'center', color: '#fff', padding: '48px 0' }
+    // This forces text to stay white
+    WebkitTextFillColor: "#fff",
 
-  const emptyStyle = {
-    textAlign: 'center',
-    color: '#fff',
-    padding: '48px 0',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: '20px'
-  }
+    // Removes native arrow background
+    appearance: "none",
+  };
+
+  const dropdownOptionStyle = {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    color: "#fff",
+    padding: "10px",
+    backdropFilter: "blur(10px)",
+    border: "none",
+  };
+
 
   if (loading) {
     return (
       <div style={pageStyle}>
-        <Navbar user={user} onLoginClick={onLoginClick} onSignupClick={onSignupClick} onLogout={onLogout} />
-        <div style={contentStyle}><div style={loadingStyle}>Loading leaderboard...</div></div>
+        <Navbar
+          user={user}
+          onLoginClick={onLoginClick}
+          onSignupClick={onSignupClick}
+          onLogout={onLogout}
+        />
+        <div style={contentStyle}>
+          <div style={{ textAlign: "center", color: "#fff", padding: "48px" }}>
+            Loading leaderboard...
+          </div>
+        </div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div style={pageStyle}>
-        <Navbar user={user} onLoginClick={onLoginClick} onSignupClick={onSignupClick} onLogout={onLogout} />
-        <div style={contentStyle}><div style={errorStyle}>{error}</div></div>
+        <Navbar
+          user={user}
+          onLoginClick={onLoginClick}
+          onSignupClick={onSignupClick}
+          onLogout={onLogout}
+        />
+        <div style={contentStyle}>
+          <div
+            style={{
+              color: "#dc2626",
+              backgroundColor: "rgba(254,242,242,0.95)",
+              padding: "16px",
+              borderRadius: "12px"
+            }}
+          >
+            {error}
+          </div>
+        </div>
       </div>
-    )
+    );
   }
 
   return (
     <div style={pageStyle}>
-      <Navbar user={user} onLoginClick={onLoginClick} onSignupClick={onSignupClick} onLogout={onLogout} />
+      <Navbar
+        user={user}
+        onLoginClick={onLoginClick}
+        onSignupClick={onSignupClick}
+        onLogout={onLogout}
+      />
 
       <div style={contentStyle}>
         <div style={headerStyle}>
@@ -475,11 +555,35 @@ export default function Leaderboard({ user, onLoginClick, onSignupClick, onLogou
           <p style={subtitleStyle}>Top-rated landlords based on user reviews</p>
         </div>
 
-        {leaderboard.length === 0 ? (
-          <div style={emptyStyle}>No landlords found.</div>
+        {/* SORT DROPDOWN */}
+        <div style={dropdownContainerStyle}>
+          <select
+            style={dropdownStyle}
+            value={sortMethod}
+            onChange={(e) => setSortMethod(e.target.value)}
+          >
+            <option style={dropdownOptionStyle} value="highest">Sort by Highest Rating</option>
+            <option style={dropdownOptionStyle} value="lowest">Sort by Lowest Rating</option>
+          </select>
+        </div>
+
+
+        {/* LIST */}
+        {sortedLeaderboard.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "#fff",
+              padding: "48px",
+              backgroundColor: "rgba(255,255,255,0.15)",
+              borderRadius: "20px"
+            }}
+          >
+            No landlords found.
+          </div>
         ) : (
-          <div style={listStyle}>
-            {leaderboard.map((landlord, index) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {sortedLeaderboard.map((landlord, index) => (
               <LeaderboardCard
                 key={landlord.landlord_id}
                 landlord={landlord}
@@ -492,8 +596,11 @@ export default function Leaderboard({ user, onLoginClick, onSignupClick, onLogou
       </div>
 
       {selectedLandlord && (
-        <LandlordModal landlord={selectedLandlord} onClose={() => setSelectedLandlord(null)} />
+        <LandlordModal
+          landlord={selectedLandlord}
+          onClose={() => setSelectedLandlord(null)}
+        />
       )}
     </div>
-  )
+  );
 }
