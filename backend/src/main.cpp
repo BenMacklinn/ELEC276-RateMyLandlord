@@ -92,6 +92,7 @@ int main() {
   const std::string usersPath = resolveDataPath("data/users.json");
   const std::string landlordsPath = resolveDataPath("data/landlords.json");
   const std::string reviewsPath = resolveDataPath("data/reviews.json");
+  const std::string landlordRequestsPath = resolveDataPath("data/landlord_requests.json");
   const std::string reportedPath = resolveDataPath("data/reported.json");
 
   // Controllers
