@@ -97,7 +97,7 @@ int main() {
   // Controllers
   auto auth = std::make_shared<AuthCtrl>(usersPath);
   auto user = std::make_shared<UserCtrl>(usersPath);
-  auto landlord = std::make_shared<LandlordCtrl>(landlordsPath);
+  auto landlord = std::make_shared<LandlordCtrl>(landlordsPath, landlordRequestsPath);
   auto review = std::make_shared<ReviewCtrl>();
   review->setDbPath(reviewsPath);
   auto admin = std::make_shared<AdminCtrl>(reportedPath, usersPath, reviewsPath);
@@ -136,6 +136,14 @@ int main() {
         auth->verifyCode(req, std::move(cb));
       },
       {drogon::Post});
+
+  drogon::app().registerHandler(
+    "/api/landlords/request",
+    [landlord](const drogon::HttpRequestPtr& req,
+               std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
+      landlord->submitRequest(req, std::move(cb));
+    },
+    {drogon::Post});
 
   // -----------------------------
   // Users
@@ -194,6 +202,35 @@ int main() {
         review->getForLandlord(req, std::move(cb), id);
       },
       {drogon::Get});
+  
+  // -----------------------------
+  // Admin Landlord Requests
+  // -----------------------------
+  drogon::app().registerHandler(
+      "/api/admin/requests",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb) {
+          landlord->listRequests(req, std::move(cb));
+      },
+      { drogon::Get });
+
+  drogon::app().registerHandler(
+      "/api/admin/requests/{id}/approve",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb,
+                int id) {
+          landlord->approveRequest(req, std::move(cb), id);
+      },
+      { drogon::Post });
+
+  drogon::app().registerHandler(
+      "/api/admin/requests/{id}/reject",
+      [landlord](const drogon::HttpRequestPtr &req,
+                std::function<void(const drogon::HttpResponsePtr &)> &&cb,
+                int id) {
+          landlord->rejectRequest(req, std::move(cb), id);
+      },
+      { drogon::Post });    
 
   drogon::app().registerHandler(
       "/api/reviews/report",

@@ -92,6 +92,47 @@ const API = {
     const j = await res.json().catch(()=>({}))
     if(!res.ok) throw new Error(j.error || 'Failed to fetch reviews')
     return j.reviews || []
+  },
+
+  async submitLandlordRequest(payload) {
+    const res = await fetch('/api/landlords/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j.error || 'Failed to submit landlord request')
+    return j
+  },
+
+  async getLandlordRequests() {
+    const res = await fetch('/api/admin/requests')
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j.error || 'Failed to fetch landlord requests')
+    return j.requests || []
+  },
+
+  async approveLandlordRequest(id) {
+    const res = await fetch(`/api/admin/requests/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}) // backend doesn't really need anything here
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j.error || 'Failed to approve request')
+    return j
+  },
+
+    async rejectLandlordRequest(id) {
+    const res = await fetch(`/api/admin/requests/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}) // no reason, just reject
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j.error || 'Failed to reject request')
+    return j
   }
+
 }
 export default API

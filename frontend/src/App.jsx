@@ -9,6 +9,7 @@ import Admin from './Admin'
 import ReportReview from './ReportReview'
 import ReportedInbox from './ReportedInbox'
 import API from './api'
+import LandlordRequests from './LandlordRequests'
 
 function Navbar({user, onLoginClick, onSignupClick, onLogout}){
   const navStyle = {

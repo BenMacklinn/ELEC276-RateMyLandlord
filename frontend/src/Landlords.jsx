@@ -541,6 +541,417 @@ function SearchResults({ err, loading, list }) {
   )
 }
 
+function LandlordRequestSection({ user, currentQuery }) {
+  const [landlordName, setLandlordName] = React.useState(currentQuery || '')
+  const [landlordEmail, setLandlordEmail] = React.useState('')
+  const [landlordPhone, setLandlordPhone] = React.useState('')
+  const [details, setDetails] = React.useState('')
+
+  // Multiple properties
+  const [properties, setProperties] = React.useState([
+    {
+      propertyAddress: '',
+      propertyCity: '',
+      propertyState: '',
+      propertyZip: '',
+      unitNumber: '',
+      unitBedrooms: '',
+      unitBathrooms: '',
+      unitRent: ''
+    }
+  ])
+
+  const [submitting, setSubmitting] = React.useState(false)
+  const [successMsg, setSuccessMsg] = React.useState('')
+  const [errorMsg, setErrorMsg] = React.useState('')
+
+  // Keep landlord name synced with current search query
+  React.useEffect(() => {
+    setLandlordName(currentQuery || '')
+  }, [currentQuery])
+
+  const cardStyle = {
+    maxWidth: '800px',
+    margin: '0 auto 60px',
+    padding: '24px',
+    borderRadius: '16px',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    color: '#ffffff'
+  }
+
+  const titleStyle = {
+    fontSize: '20px',
+    fontWeight: '700',
+    marginBottom: '8px'
+  }
+
+  const subtitleStyle = {
+    fontSize: '14px',
+    opacity: 0.9,
+    marginBottom: '16px'
+  }
+
+  const sectionTitleStyle = {
+    fontSize: '16px',
+    fontWeight: 600,
+    marginTop: '16px',
+    marginBottom: '8px'
+  }
+
+  const formRowStyle = {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '12px',
+    flexWrap: 'wrap'
+  }
+
+  const inputStyle = {
+    flex: 1,
+    minWidth: '220px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    color: '#ffffff',
+    outline: 'none'
+  }
+
+  const textareaStyle = {
+    ...inputStyle,
+    minHeight: '80px',
+    resize: 'vertical'
+  }
+
+  const buttonStyle = {
+    padding: '10px 20px',
+    borderRadius: '999px',
+    border: 'none',
+    fontWeight: '600',
+    cursor: 'pointer',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    color: '#2563eb',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+  }
+
+  const secondaryButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    color: '#ffffff',
+    border: '1px solid rgba(255,255,255,0.4)'
+  }
+
+  const removeButtonStyle = {
+    ...secondaryButtonStyle,
+    padding: '6px 12px',
+    fontSize: '12px'
+  }
+
+  const errorStyle = {
+    color: '#fee2e2',
+    backgroundColor: 'rgba(220, 38, 38, 0.25)',
+    border: '1px solid rgba(248, 113, 113, 0.8)',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    marginTop: '8px',
+    fontSize: '13px'
+  }
+
+  const successStyle = {
+    color: '#bbf7d0',
+    backgroundColor: 'rgba(22, 163, 74, 0.25)',
+    border: '1px solid rgba(74, 222, 128, 0.8)',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    marginTop: '8px',
+    fontSize: '13px'
+  }
+
+  const propertyCardStyle = {
+    marginTop: '12px',
+    padding: '16px',
+    borderRadius: '12px',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.25)'
+  }
+
+  const handlePropertyChange = (index, field, value) => {
+    setProperties(prev => {
+      const copy = [...prev]
+      copy[index] = { ...copy[index], [field]: value }
+      return copy
+    })
+  }
+
+  const handleAddProperty = () => {
+    setProperties(prev => [
+      ...prev,
+      {
+        propertyAddress: '',
+        propertyCity: '',
+        propertyState: '',
+        propertyZip: '',
+        unitNumber: '',
+        unitBedrooms: '',
+        unitBathrooms: '',
+        unitRent: ''
+      }
+    ])
+  }
+
+  const handleRemoveProperty = (index) => {
+    setProperties(prev => {
+      if (prev.length === 1) return prev
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setErrorMsg('')
+    setSuccessMsg('')
+
+    if (!user) {
+      setErrorMsg('You must be logged in to submit a landlord request.')
+      return
+    }
+
+    if (!landlordName.trim() || !landlordEmail.trim() || !landlordPhone.trim()) {
+      setErrorMsg('Please fill in landlord name, email, and phone.')
+      return
+    }
+
+    // Validate all properties
+    const trimmedProps = properties.map(p => ({
+      ...p,
+      propertyAddress: p.propertyAddress.trim(),
+      propertyCity: p.propertyCity.trim(),
+      propertyState: p.propertyState.trim(),
+      propertyZip: p.propertyZip.trim(),
+      unitNumber: p.unitNumber.trim(),
+      unitBedrooms: p.unitBedrooms.trim(),
+      unitBathrooms: p.unitBathrooms.trim(),
+      unitRent: p.unitRent.trim()
+    }))
+
+    if (trimmedProps.length === 0) {
+      setErrorMsg('Please add at least one property.')
+      return
+    }
+
+    for (const p of trimmedProps) {
+      if (
+        !p.propertyAddress ||
+        !p.propertyCity ||
+        !p.propertyState ||
+        !p.propertyZip ||
+        !p.unitNumber ||
+        !p.unitBedrooms ||
+        !p.unitBathrooms ||
+        !p.unitRent
+      ) {
+        setErrorMsg('Please fill in all fields for every property (address, city/state/zip, and unit details).')
+        return
+      }
+    }
+
+    setSubmitting(true)
+    try {
+      await API.submitLandlordRequest({
+        landlord_name: landlordName.trim(),
+        landlord_email: landlordEmail.trim(),
+        landlord_phone: landlordPhone.trim(),
+        details: details.trim(),
+        user_name: user.name,
+        user_email: user.email,
+        properties: trimmedProps.map(p => ({
+          property_address: p.propertyAddress,
+          property_city: p.propertyCity,
+          property_state: p.propertyState,
+          property_zip: p.propertyZip,
+          unit_number: p.unitNumber,
+          unit_bedrooms: parseInt(p.unitBedrooms, 10),
+          unit_bathrooms: parseInt(p.unitBathrooms, 10),
+          unit_rent: parseInt(p.unitRent, 10)
+        }))
+      })
+
+      setSuccessMsg('Your request has been submitted. Thank you!')
+      setDetails('')
+      setLandlordEmail('')
+      setLandlordPhone('')
+      setProperties([
+        {
+          propertyAddress: '',
+          propertyCity: '',
+          propertyState: '',
+          propertyZip: '',
+          unitNumber: '',
+          unitBedrooms: '',
+          unitBathrooms: '',
+          unitRent: ''
+        }
+      ])
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to submit request')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div style={cardStyle}>
+      <div style={titleStyle}>Can’t find your landlord?</div>
+      <div style={subtitleStyle}>
+        Submit a request and an admin will review it and add the landlord to the system.
+      </div>
+      <form onSubmit={handleSubmit}>
+        {/* Landlord name (still synced to search query) */}
+        <div style={formRowStyle}>
+          <input
+            style={inputStyle}
+            placeholder="Landlord name"
+            value={landlordName}
+            onChange={e => setLandlordName(e.target.value)}
+          />
+        </div>
+
+        {/* Landlord email + phone (mandatory) */}
+        <div style={formRowStyle}>
+          <input
+            style={inputStyle}
+            placeholder="Landlord email"
+            type="email"
+            value={landlordEmail}
+            onChange={e => setLandlordEmail(e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder="Landlord phone"
+            type="tel"
+            value={landlordPhone}
+            onChange={e => setLandlordPhone(e.target.value)}
+          />
+        </div>
+
+        {/* Properties section */}
+        <div style={sectionTitleStyle}>Properties for this landlord</div>
+        {properties.map((p, idx) => (
+          <div key={idx} style={propertyCardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 600 }}>Property #{idx + 1}</span>
+              {properties.length > 1 && (
+                <button
+                  type="button"
+                  style={removeButtonStyle}
+                  onClick={() => handleRemoveProperty(idx)}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+
+            <div style={formRowStyle}>
+              <input
+                style={inputStyle}
+                placeholder="Street address"
+                value={p.propertyAddress}
+                onChange={e => handlePropertyChange(idx, 'propertyAddress', e.target.value)}
+              />
+            </div>
+
+            <div style={formRowStyle}>
+              <input
+                style={inputStyle}
+                placeholder="City"
+                value={p.propertyCity}
+                onChange={e => handlePropertyChange(idx, 'propertyCity', e.target.value)}
+              />
+              <input
+                style={inputStyle}
+                placeholder="State / Province"
+                value={p.propertyState}
+                onChange={e => handlePropertyChange(idx, 'propertyState', e.target.value)}
+              />
+              <input
+                style={inputStyle}
+                placeholder="ZIP / Postal code"
+                value={p.propertyZip}
+                onChange={e => handlePropertyChange(idx, 'propertyZip', e.target.value)}
+              />
+            </div>
+
+            <div style={formRowStyle}>
+              <input
+                style={inputStyle}
+                placeholder="Unit number (e.g., Apartment 101)"
+                value={p.unitNumber}
+                onChange={e => handlePropertyChange(idx, 'unitNumber', e.target.value)}
+              />
+            </div>
+            <div style={formRowStyle}>
+              <input
+                style={inputStyle}
+                placeholder="Bedrooms"
+                type="number"
+                min="0"
+                value={p.unitBedrooms}
+                onChange={e => handlePropertyChange(idx, 'unitBedrooms', e.target.value)}
+              />
+              <input
+                style={inputStyle}
+                placeholder="Bathrooms"
+                type="number"
+                min="0"
+                value={p.unitBathrooms}
+                onChange={e => handlePropertyChange(idx, 'unitBathrooms', e.target.value)}
+              />
+              <input
+                style={inputStyle}
+                placeholder="Rent per month"
+                type="number"
+                min="0"
+                value={p.unitRent}
+                onChange={e => handlePropertyChange(idx, 'unitRent', e.target.value)}
+              />
+            </div>
+          </div>
+        ))}
+
+        <div style={{ marginTop: '8px', marginBottom: '16px' }}>
+          <button type="button" style={secondaryButtonStyle} onClick={handleAddProperty}>
+            + Add another property
+          </button>
+        </div>
+
+        {/* Extra details (optional) */}
+        <div style={formRowStyle}>
+          <textarea
+            style={textareaStyle}
+            placeholder="Any extra details you’d like the admin to know (optional)…"
+            value={details}
+            maxLength={250}
+            onChange={e => setDetails(e.target.value)}
+          />
+
+          <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+            {details.length}/250 characters
+          </div>
+        </div>
+
+        <button type="submit" style={buttonStyle} disabled={submitting}>
+          {submitting ? 'Sending…' : 'Submit landlord request'}
+        </button>
+        {errorMsg && <div style={errorStyle}>{errorMsg}</div>}
+        {successMsg && <div style={successStyle}>{successMsg}</div>}
+      </form>
+    </div>
+  )
+}
+
+
 export default function Landlords({ user, onLoginClick, onSignupClick, onLogout }) {
   const [q, setQ] = React.useState('')
   const [list, setList] = React.useState([])
@@ -676,6 +1087,7 @@ export default function Landlords({ user, onLoginClick, onSignupClick, onLogout 
         </div>
 
         <SearchResults err={err} loading={loading} list={list} />
+        <LandlordRequestSection user={user} currentQuery={q} />
       </div>
     </>
   )
