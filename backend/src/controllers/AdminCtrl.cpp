@@ -56,6 +56,7 @@ void AdminCtrl::approve(const drogon::HttpRequestPtr &req, std::function<void (c
     }
 
     Json::Value root;
+    std::string removedReviewId;
     {
         std::lock_guard<std::mutex> lk(mu_);
         std::ifstream f(reportedPath_);
@@ -63,14 +64,18 @@ void AdminCtrl::approve(const drogon::HttpRequestPtr &req, std::function<void (c
         else root["reports"] = Json::Value(Json::arrayValue);
 
         bool found = false;
-        for(auto &r : root["reports"]) {
+        Json::Value newReports(Json::arrayValue);
+        for(const auto &r : root["reports"]) {
             if(r["id"].asString() == id) {
-                r["status"] = "approved";
+                // remove this report (approved)
+                removedReviewId = r.get("review_id", "").asString();
                 found = true;
-                break;
+                continue;
             }
+            newReports.append(r);
         }
         if(found) {
+            root["reports"] = newReports;
             std::ofstream out(reportedPath_, std::ios::trunc);
             out << root.toStyledString();
         } else {
@@ -82,8 +87,30 @@ void AdminCtrl::approve(const drogon::HttpRequestPtr &req, std::function<void (c
         }
     }
 
+    // If we removed a report, also remove the referenced review from reviews.json
+    if(!removedReviewId.empty()) {
+        Json::Value reviewsRoot;
+        {
+            std::lock_guard<std::mutex> lk(mu_);
+            std::ifstream rf(reviewsPath_);
+            if(rf.good()) rf >> reviewsRoot;
+            else reviewsRoot["reviews"] = Json::Value(Json::arrayValue);
+
+            Json::Value newReviews(Json::arrayValue);
+            for(const auto &rv : reviewsRoot["reviews"]) {
+                if(rv.get("id", "").asString() == removedReviewId) {
+                    continue; // drop this review
+                }
+                newReviews.append(rv);
+            }
+            reviewsRoot["reviews"] = newReviews;
+            std::ofstream rfout(reviewsPath_, std::ios::trunc);
+            rfout << reviewsRoot.toStyledString();
+        }
+    }
+
     auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-    (*resp->getJsonObject())["message"] = "report approved";
+    (*resp->getJsonObject())["message"] = "report approved and review removed";
     cb(resp);
 }
 
@@ -106,14 +133,17 @@ void AdminCtrl::deny(const drogon::HttpRequestPtr &req, std::function<void (cons
         else root["reports"] = Json::Value(Json::arrayValue);
 
         bool found = false;
-        for(auto &r : root["reports"]) {
+        Json::Value newReports(Json::arrayValue);
+        for(const auto &r : root["reports"]) {
             if(r["id"].asString() == id) {
-                r["status"] = "denied";
+                // drop the report (denied)
                 found = true;
-                break;
+                continue;
             }
+            newReports.append(r);
         }
         if(found) {
+            root["reports"] = newReports;
             std::ofstream out(reportedPath_, std::ios::trunc);
             out << root.toStyledString();
         } else {
@@ -126,6 +156,6 @@ void AdminCtrl::deny(const drogon::HttpRequestPtr &req, std::function<void (cons
     }
 
     auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-    (*resp->getJsonObject())["message"] = "report denied";
+    (*resp->getJsonObject())["message"] = "report removed (denied)";
     cb(resp);
 }

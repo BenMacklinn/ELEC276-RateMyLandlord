@@ -77,6 +77,16 @@ const API = {
     if(!res.ok) throw new Error(j.error || 'Failed to submit review')
     return j
   },
+  async reportReview(reviewId, title, review, reason, reportedBy) {
+    const res = await fetch('/api/reviews/report', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ review_id: reviewId, title, review, reason, reported_by: reportedBy })
+    })
+    const j = await res.json().catch(()=>({}))
+    if(!res.ok) throw new Error(j.error || 'Failed to submit report')
+    return j
+  },
   async getLandlordReviews(landlordId) {
     const res = await fetch(`/api/reviews/landlord/${landlordId}`)
     const j = await res.json().catch(()=>({}))

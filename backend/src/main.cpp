@@ -100,7 +100,7 @@ int main() {
   auto landlord = std::make_shared<LandlordCtrl>(landlordsPath);
   auto review = std::make_shared<ReviewCtrl>();
   review->setDbPath(reviewsPath);
-  auto admin = std::make_shared<AdminCtrl>(reportedPath, usersPath);
+  auto admin = std::make_shared<AdminCtrl>(reportedPath, usersPath, reviewsPath);
 
   // -----------------------------
   // Authentication routes
@@ -194,6 +194,14 @@ int main() {
         review->getForLandlord(req, std::move(cb), id);
       },
       {drogon::Get});
+
+  drogon::app().registerHandler(
+      "/api/reviews/report",
+      [review](const drogon::HttpRequestPtr& req,
+               std::function<void(const drogon::HttpResponsePtr&)>&& cb) {
+        review->submitReport(req, std::move(cb));
+      },
+      {drogon::Post});
 
   // -----------------------------
   // Admin: reported reviews

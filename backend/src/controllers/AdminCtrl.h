@@ -6,8 +6,8 @@
 
 class AdminCtrl {
 public:
-    explicit AdminCtrl(const std::string &reportedPath, const std::string &usersPath)
-        : reportedPath_(reportedPath), usersPath_(usersPath) {}
+    explicit AdminCtrl(const std::string &reportedPath, const std::string &usersPath, const std::string &reviewsPath)
+        : reportedPath_(reportedPath), usersPath_(usersPath), reviewsPath_(reviewsPath) {}
 
     void getReported(const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb);
     void approve(const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb, const std::string &id);
@@ -16,6 +16,7 @@ public:
 private:
     std::string reportedPath_;
     std::string usersPath_;
+    std::string reviewsPath_;
     std::mutex mu_;
 
     static std::string parseToken(const std::string &authHeader) {

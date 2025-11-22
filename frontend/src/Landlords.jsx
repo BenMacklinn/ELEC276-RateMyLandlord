@@ -1,10 +1,11 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import API from './api'
 
 export function ReviewList({ landlordId, onRatingCalculated }) {
   const [reviews, setReviews] = React.useState([])
   const [loading, setLoading] = React.useState(true)
+  const navigate = useNavigate()
 
   React.useEffect(() => {
     let ok = true
@@ -60,6 +61,9 @@ export function ReviewList({ landlordId, onRatingCalculated }) {
             marginTop: '8px'
           }}>
             {new Date(review.created_at).toLocaleDateString()}
+            <div style={{display:'inline-block', marginLeft:12}}>
+              <button onClick={() => navigate('/report', { state: { review } })} style={{padding:'6px 14px', borderRadius:6, background:'#2563eb', color:'#fff', border:'none', cursor:'pointer', fontWeight:'bold', boxShadow:'0 2px 8px rgba(37,99,235,0.10)'}}>Report</button>
+            </div>
           </div>
         </div>
       ))}
