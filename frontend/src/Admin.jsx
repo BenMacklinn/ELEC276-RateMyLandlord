@@ -104,7 +104,7 @@ export default function Admin({ user }) {
           </p>
         </header>
         <div style={gridStyle}>
-          {defaultTools.map((tool) => (
+          {defaultTools.map((tool, index) => (
             <div key={tool.title} style={cardStyle}>
               <div style={cardTitleStyle}>{tool.title}</div>
               <div style={cardDescriptionStyle}>{tool.description}</div>
@@ -112,8 +112,14 @@ export default function Admin({ user }) {
                 style={buttonStyle}
                 type="button"
                 onClick={() => {
-                  // Navigate to the reported inbox and mark that we came from Admin
-                  navigate('/admin/reported', { state: { fromAdmin: true } })
+                  // Navigate based on which tool was clicked
+                  if (index === 0) {
+                    // First tool: Landlord Request Inbox
+                    navigate('/admin/landlord-requests', { state: { fromAdmin: true } })
+                  } else {
+                    // Second tool: Reported Reviews Inbox
+                    navigate('/admin/reported', { state: { fromAdmin: true } })
+                  }
                 }}
               >
                 {tool.cta}

@@ -1,21 +1,16 @@
 #include "AdminCtrl.h"
+#include "SupabaseHelper.h"
 #include <fstream>
 
 bool AdminCtrl::isAdmin(const std::string &email) {
-    // load users.json and check admin flag
-    Json::Value arr(Json::arrayValue);
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(usersPath_);
-        if(f.good()) f >> arr;
+    // Check admin status from Supabase database
+    bool isAdminUser = false;
+    std::string err;
+    if(!SupabaseHelper::getUserAdminStatus(email, isAdminUser, err)) {
+        LOG_ERROR << "Failed to check admin status for " << email << ": " << err;
+        return false; // Fail closed - if we can't verify, deny access
     }
-
-    for(const auto &u : arr) {
-        if(u["email"].asString() == email) {
-            return u.get("admin", 0).asInt() == 1;
-        }
-    }
-    return false;
+    return isAdminUser;
 }
 
 void AdminCtrl::getReported(const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
@@ -29,17 +24,22 @@ void AdminCtrl::getReported(const drogon::HttpRequestPtr &req, std::function<voi
         return;
     }
 
-    Json::Value root(Json::objectValue);
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(reportedPath_);
-        if(f.good()) {
-            f >> root;
-        } else {
-            root["reports"] = Json::Value(Json::arrayValue);
-        }
+    Json::Value reportsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllReportedReviews(reportsArray, err)) {
+        LOG_ERROR << "Failed to get reported reviews: " << err;
+        // Return 200 with empty array - endpoint exists but query failed
+        // This prevents frontend from thinking endpoint is missing
+        Json::Value root(Json::objectValue);
+        root["reports"] = Json::Value(Json::arrayValue);
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(root);
+        resp->setStatusCode(drogon::k200OK);
+        cb(resp);
+        return;
     }
 
+    Json::Value root(Json::objectValue);
+    root["reports"] = reportsArray;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(root);
     cb(resp);
 }
@@ -55,57 +55,51 @@ void AdminCtrl::approve(const drogon::HttpRequestPtr &req, std::function<void (c
         return;
     }
 
-    Json::Value root;
-    std::string removedReviewId;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(reportedPath_);
-        if(f.good()) f >> root;
-        else root["reports"] = Json::Value(Json::arrayValue);
+    // Get the report to find the review_id
+    Json::Value reportsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllReportedReviews(reportsArray, err)) {
+        LOG_ERROR << "Failed to get reported reviews: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to load reports: " + err;
+        cb(resp);
+        return;
+    }
 
-        bool found = false;
-        Json::Value newReports(Json::arrayValue);
-        for(const auto &r : root["reports"]) {
-            if(r["id"].asString() == id) {
-                // remove this report (approved)
-                removedReviewId = r.get("review_id", "").asString();
-                found = true;
-                continue;
-            }
-            newReports.append(r);
-        }
-        if(found) {
-            root["reports"] = newReports;
-            std::ofstream out(reportedPath_, std::ios::trunc);
-            out << root.toStyledString();
-        } else {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k404NotFound);
-            (*resp->getJsonObject())["error"] = "report not found";
-            cb(resp);
-            return;
+    std::string removedReviewId;
+    bool found = false;
+    for(const auto &r : reportsArray) {
+        if(r["id"].asString() == id) {
+            removedReviewId = r.get("review_id", "").asString();
+            found = true;
+            break;
         }
     }
 
-    // If we removed a report, also remove the referenced review from reviews.json
-    if(!removedReviewId.empty()) {
-        Json::Value reviewsRoot;
-        {
-            std::lock_guard<std::mutex> lk(mu_);
-            std::ifstream rf(reviewsPath_);
-            if(rf.good()) rf >> reviewsRoot;
-            else reviewsRoot["reviews"] = Json::Value(Json::arrayValue);
+    if(!found) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k404NotFound);
+        (*resp->getJsonObject())["error"] = "report not found";
+        cb(resp);
+        return;
+    }
 
-            Json::Value newReviews(Json::arrayValue);
-            for(const auto &rv : reviewsRoot["reviews"]) {
-                if(rv.get("id", "").asString() == removedReviewId) {
-                    continue; // drop this review
-                }
-                newReviews.append(rv);
-            }
-            reviewsRoot["reviews"] = newReviews;
-            std::ofstream rfout(reviewsPath_, std::ios::trunc);
-            rfout << reviewsRoot.toStyledString();
+    // Delete the report
+    if(!SupabaseHelper::deleteReportedReview(id, err)) {
+        LOG_ERROR << "Failed to delete report: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to delete report: " + err;
+        cb(resp);
+        return;
+    }
+
+    // Delete the review if review_id was found
+    if(!removedReviewId.empty()) {
+        if(!SupabaseHelper::deleteReview(removedReviewId, err)) {
+            LOG_ERROR << "Failed to delete review " << removedReviewId << ": " << err;
+            // Continue anyway - report was deleted
         }
     }
 
@@ -125,34 +119,15 @@ void AdminCtrl::deny(const drogon::HttpRequestPtr &req, std::function<void (cons
         return;
     }
 
-    Json::Value root;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(reportedPath_);
-        if(f.good()) f >> root;
-        else root["reports"] = Json::Value(Json::arrayValue);
-
-        bool found = false;
-        Json::Value newReports(Json::arrayValue);
-        for(const auto &r : root["reports"]) {
-            if(r["id"].asString() == id) {
-                // drop the report (denied)
-                found = true;
-                continue;
-            }
-            newReports.append(r);
-        }
-        if(found) {
-            root["reports"] = newReports;
-            std::ofstream out(reportedPath_, std::ios::trunc);
-            out << root.toStyledString();
-        } else {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k404NotFound);
-            (*resp->getJsonObject())["error"] = "report not found";
-            cb(resp);
-            return;
-        }
+    // Delete the report from Supabase
+    std::string err;
+    if(!SupabaseHelper::deleteReportedReview(id, err)) {
+        LOG_ERROR << "Failed to delete report: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to delete report: " + err;
+        cb(resp);
+        return;
     }
 
     auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));

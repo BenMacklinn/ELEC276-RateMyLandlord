@@ -711,6 +711,23 @@ export default function App(){
             <Navigate to="/" replace />
           )
         } />
+        <Route path="/admin/landlord-requests" element={
+          userLoading ? (
+            <div style={loadingScreenStyle}>Checking permissions…</div>
+          ) : user?.admin ? (
+            <>
+              <Navbar
+                user={user}
+                onLoginClick={()=>{ setShowLogin(true); setShowSignup(false) }}
+                onSignupClick={()=>{ setShowSignup(true); setShowLogin(false) }}
+                onLogout={handleLogout}
+              />
+              <LandlordRequests user={user} />
+            </>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
         <Route path="/admin/reported" element={
           userLoading ? (
             <div style={loadingScreenStyle}>Checking permissions…</div>

@@ -1,4 +1,5 @@
 #include "AuthCtrl.h"
+#include "SupabaseHelper.h"
 #include <sstream>
 #include <random>
 #include <chrono>
@@ -8,6 +9,7 @@
 #include <mutex>
 #include <cstring>
 #include <sodium.h>
+#include <vector>
 
 // Creating unnamed namespace to prevent varaible/functional collisons
 namespace {
@@ -96,7 +98,7 @@ namespace {
         size_t offset{0};
     };
 
-    // payloadSource copies the next chunk from CurlPayload into curl’s buffer until the payload is exhausted.
+    // payloadSource copies the next chunk from CurlPayload into curl's buffer until the payload is exhausted.
     size_t payloadSource(char *buffer, size_t size, size_t nitems, void *userdata) {
         if(!buffer || !userdata) return 0;
         auto *payload = static_cast<CurlPayload*>(userdata);
@@ -193,39 +195,6 @@ namespace {
     }
 }
 
-void AuthCtrl::loadDb() {
-    users_.clear();
-    std::ifstream f(dbPath_);
-    if(!f.good()) return;
-    Json::Value root;
-    f >> root;
-    for (const auto &u : root) {
-    User user;
-    user.email = u["email"].asString();
-    user.name  = u.get("name", "").asString();
-    user.admin = u.get("admin", 0).asInt();
-
-    // New schema (preferred for demo): password_plain + password_hashed
-    if (u.isMember("password_plain")) {
-        user.password_plain = u["password_plain"].asString();
-    } else if (u.isMember("password")) {
-        // Legacy plaintext field named "password"
-        user.password_plain = u["password"].asString();
-    }
-
-    if (u.isMember("password_hashed")) {
-        user.password_hashed = u["password_hashed"].asString();
-    } else if (u.isMember("password_hash")) {
-        // Legacy hashed field named "password_hash"
-        user.password_hashed = u["password_hash"].asString();
-    } else {
-        user.password_hashed.clear();
-    }
-
-    users_[user.email] = std::move(user);
-}
-
-}
 
 std::string AuthCtrl::makeToken(const std::string &email) {
     // DEMO token (replace with JWT/session in production)
@@ -263,16 +232,23 @@ void AuthCtrl::requestVerification(const drogon::HttpRequestPtr &req,
         return;
     }
 
-    // Step 0: Check if email exists in json file
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        if(users_.find(email) != users_.end()) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k409Conflict);
-            (*resp->getJsonObject())["error"] = "user already exists";
-            cb(resp);
-            return;
-        }
+    // Check if email exists in Supabase database
+    bool supabaseExists = false;
+    std::string supabaseCheckErr;
+    if(!SupabaseHelper::checkUserExists(email, supabaseExists, supabaseCheckErr)) {
+        LOG_ERROR << "Failed to check Supabase for " << email << ": " << supabaseCheckErr;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "database check failed: " + supabaseCheckErr;
+        cb(resp);
+        return;
+    }
+    if(supabaseExists) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k409Conflict);
+        (*resp->getJsonObject())["error"] = "user already exists";
+        cb(resp);
+        return;
     }
 
     // Step 1: Now that we have confirmed we can proceed with the account creation, start by generating a verification code.
@@ -391,48 +367,15 @@ void AuthCtrl::login(const drogon::HttpRequestPtr &req,
     // Ok, now that we have confimred that there is either a email or password. Let us check if they are valid 
     std::string email = (*json)["email"].asString();
     std::string password = (*json)["password"].asString();
-    auto it = users_.find(email);
 
-    // HASH secure verification + legacy upgrade
-    bool ok = false;
-
-    if (it != users_.end()) {
-        const std::string &stored_phc = it->second.password_hashed;
-
-        if (!stored_phc.empty() && AuthCtrl::isArgon2idEncoded(stored_phc)) {
-        // Preferred path: verify against Argon2id PHC
-            ok = AuthCtrl::verifyPassword(password, stored_phc);
-        } else {
-            // Legacy path: allow one-time plaintext match (demo), then upgrade to hash
-            if (!it->second.password_plain.empty() && it->second.password_plain == password) {
-                std::string encoded;
-                if (AuthCtrl::hashPassword(password, encoded)) {
-                    it->second.password_hashed = encoded;
-
-                    // Persist upgrade with BOTH fields for demo
-                    Json::Value out(Json::arrayValue);
-                    for (const auto &kv : users_) {
-                        const auto &usr = kv.second;
-                        Json::Value u(Json::objectValue);
-                        u["email"] = usr.email;
-                        u["name"]  = usr.name;
-                        u["password_plain"]  = usr.password_plain;   // demo only
-                        u["password_hashed"] = usr.password_hashed;  // real auth
-                        u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
-                                           ? "argon2id-phc" : "none";
-                        u["admin"] = usr.admin;
-                        out.append(u);
-                    }
-                    std::ofstream f(dbPath_, std::ios::trunc);
-                    f << out;
-                    f.close();
-                }
-                ok = true;
-            }
-        }
-    }
-
-    if (it == users_.end() || !ok) {
+    // Fetch user data from Supabase database
+    std::string password_hashed;
+    std::string password_plain;
+    std::string name;
+    int admin = 0;
+    std::string err;
+    if(!SupabaseHelper::getUserPasswordHash(email, password_hashed, password_plain, name, admin, err)) {
+        LOG_ERROR << "Failed to get user password hash for " << email << ": " << err;
         auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
         resp->setStatusCode(drogon::k401Unauthorized);
         (*resp->getJsonObject())["error"] = "invalid credentials";
@@ -440,13 +383,33 @@ void AuthCtrl::login(const drogon::HttpRequestPtr &req,
         return;
     }
 
+    // HASH secure verification + legacy upgrade
+    bool ok = false;
+
+    if (!password_hashed.empty() && AuthCtrl::isArgon2idEncoded(password_hashed)) {
+        // Preferred path: verify against Argon2id PHC
+        ok = AuthCtrl::verifyPassword(password, password_hashed);
+    } else {
+        // Legacy path: allow one-time plaintext match (demo)
+        if (!password_plain.empty() && password_plain == password) {
+            ok = true;
+        }
+    }
+
+    if (!ok) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k401Unauthorized);
+        (*resp->getJsonObject())["error"] = "invalid credentials";
+        cb(resp);
+        return;
+    }
 
     // Now we have passed all the login checks (Is there data? and Is the data in the database?), we can now confirm the request. 
     Json::Value payload(Json::objectValue);
     payload["token"] = makeToken(email);
-    payload["name"] = it->second.name;
+    payload["name"] = name;
     payload["email"] = email;
-    payload["admin"] = it->second.admin;
+    payload["admin"] = admin;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(payload);
     cb(resp);
 }
@@ -473,26 +436,6 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
         return;
     }
 
-    {
-    std::lock_guard<std::mutex> lk(mu_);
-    auto pendingIt = pendingVerifications_.find(email);
-    const auto now = std::chrono::steady_clock::now();
-    if(pendingIt == pendingVerifications_.end() || !pendingIt->second.verified || now > pendingIt->second.expiresAt) {
-        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-        resp->setStatusCode(drogon::k400BadRequest);
-        (*resp->getJsonObject())["error"] = "email must be verified before signup";
-        cb(resp);
-        return;
-    }
-
-    if(users_.find(email) != users_.end()) {
-        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-        resp->setStatusCode(drogon::k409Conflict);
-        (*resp->getJsonObject())["error"] = "user already exists";
-        cb(resp);
-        return;
-    }
-
     // HASH password before saving
     std::string encoded;
     if (!AuthCtrl::hashPassword(password, encoded)) {
@@ -503,34 +446,54 @@ void AuthCtrl::signup(const drogon::HttpRequestPtr &req,
         return;
     }
 
-    // Store BOTH fields (demo + real auth)
-    User nu;
-    nu.email = email;
-    nu.name  = name;
-    nu.password_plain  = password;  // DEMO ONLY
-    nu.password_hashed = encoded;   // Argon2id PHC for real auth
-    nu.admin = 0;
-    users_[email] = std::move(nu);
-    pendingVerifications_.erase(pendingIt);
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto pendingIt = pendingVerifications_.find(email);
+        const auto now = std::chrono::steady_clock::now();
+        if(pendingIt == pendingVerifications_.end() || !pendingIt->second.verified || now > pendingIt->second.expiresAt) {
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+            resp->setStatusCode(drogon::k400BadRequest);
+            (*resp->getJsonObject())["error"] = "email must be verified before signup";
+            cb(resp);
+            return;
+        }
 
-    // persist to users.json (array of users)
-    Json::Value out(Json::arrayValue);
-    for (const auto &kv : users_) {
-        const auto &usr = kv.second;
-        Json::Value u(Json::objectValue);
-        u["email"] = usr.email;
-        u["name"]  = usr.name;
-        u["password_plain"]  = usr.password_plain;   // demo
-        u["password_hashed"] = usr.password_hashed;  // real auth
-        u["password_scheme"] = AuthCtrl::isArgon2idEncoded(usr.password_hashed)
-                       ? "argon2id-phc" : "none";
-        u["admin"] = usr.admin;
-        out.append(u);
     }
-    std::ofstream f(dbPath_, std::ios::trunc);
-    f << out;
-    f.close();
-}
+
+    // Check if email exists in Supabase database (required)
+    bool supabaseExists = false;
+    std::string supabaseCheckErr;
+    if(!SupabaseHelper::checkUserExists(email, supabaseExists, supabaseCheckErr)) {
+        LOG_ERROR << "Failed to check Supabase for " << email << ": " << supabaseCheckErr;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "database check failed: " + supabaseCheckErr;
+        cb(resp);
+        return;
+    }
+    if(supabaseExists) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k409Conflict);
+        (*resp->getJsonObject())["error"] = "user already exists";
+        cb(resp);
+        return;
+    }
+
+    // Insert user into Supabase database
+    std::string supabaseErr;
+    if(!SupabaseHelper::insertUser(email, name, password, encoded, 0, supabaseErr)) {
+        LOG_ERROR << "Supabase sync failed for " << email << ": " << supabaseErr;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "internal error (supabase sync)";
+        cb(resp);
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        pendingVerifications_.erase(email);
+    }
     Json::Value payload(Json::objectValue);
     payload["token"] = makeToken(email);
     payload["name"] = name;

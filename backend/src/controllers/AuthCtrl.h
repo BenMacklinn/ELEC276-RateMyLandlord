@@ -1,7 +1,6 @@
 #pragma once
 #include <drogon/drogon.h>
 #include <json/json.h>
-#include <fstream>
 #include <unordered_map>
 #include <mutex>
 #include <chrono>
@@ -22,7 +21,7 @@
 
 class AuthCtrl {
 public:
-    explicit AuthCtrl(const std::string &dbPath) : dbPath_(dbPath) { loadDb(); }
+    explicit AuthCtrl(const std::string &dbPath) : dbPath_(dbPath) { }
 
     void login(const drogon::HttpRequestPtr &req,
                std::function<void (const drogon::HttpResponsePtr &)> &&cb);
@@ -44,25 +43,14 @@ public:
 private:
     std::string dbPath_;
 
-    struct User {
-        std::string email;
-        std::string password_plain; // DEMO ONLY, REMOVE IN PRODUCTION
-        std::string password_hashed; // $argon2id$ PHC string format
-        std::string name;
-        int admin{0};
-    };
-
     struct PendingVerification {
         std::string code;
         std::chrono::steady_clock::time_point expiresAt;
         bool verified{false};
     };
-    std::unordered_map<std::string, User> users_;
     std::unordered_map<std::string, PendingVerification> pendingVerifications_;
     std::mutex mu_;
 
     static std::string makeToken(const std::string &email);
     static std::string parseToken(const std::string &authHeader);
-
-    void loadDb();
 };

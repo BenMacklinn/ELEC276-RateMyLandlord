@@ -1,4 +1,5 @@
 #include "LandlordCtrl.h"
+#include "SupabaseHelper.h"
 #include <fstream>
 #include <algorithm>
 #include <map>
@@ -13,24 +14,21 @@ static std::string lower(std::string s){
     return s;
 }
 
-// Helper: load reviews.json and compute per-landlord (sum, count)
+// Helper: load reviews from Supabase and compute per-landlord (sum, count)
 static std::map<std::string, std::pair<double,int>> computeLandlordRatings()
 {
     std::map<std::string, std::pair<double,int>> ratings;
-    Json::Value reviewDb;
-    std::ifstream reviewFile("data/reviews.json");
-    if (reviewFile.good()) {
-        reviewFile >> reviewDb;
-    } else {
-        std::ifstream reviewFile2("../data/reviews.json");
-        if (reviewFile2.good()) {
-            reviewFile2 >> reviewDb;
-        } else {
-            reviewDb["reviews"] = Json::Value(Json::arrayValue);
-        }
+    
+    // Get all reviews from Supabase
+    Json::Value reviewsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllReviews(reviewsArray, err)) {
+        LOG_ERROR << "Failed to load reviews for rating computation: " << err;
+        return ratings; // Return empty map if Supabase fails
     }
 
-    for (const auto &review : reviewDb["reviews"]) {
+    // Compute ratings from Supabase reviews
+    for (const auto &review : reviewsArray) {
         std::string landlordId = review["landlord_id"].asString();
         int rating = review["rating"].asInt();
         if (ratings.find(landlordId) == ratings.end()) {
@@ -48,26 +46,23 @@ void LandlordCtrl::search(const drogon::HttpRequestPtr &req,
     auto q = req->getParameter("name");
     std::string query = lower(q);
 
-    Json::Value db;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(dbPath_);
-        if(!f.good()){
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k500InternalServerError);
-            (*resp->getJsonObject())["error"] = "landlords database missing";
-            cb(resp);
-            return;
-        }
-        f >> db;
+    // Get all landlords from Supabase
+    Json::Value landlordsJson;
+    std::string err;
+    if(!SupabaseHelper::getAllLandlords(landlordsJson, err)) {
+        LOG_ERROR << "Failed to get landlords from Supabase: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "failed to load landlords: " + err;
+        cb(resp);
+        return;
     }
 
     // Compute ratings map once and attach to results
     auto landlordRatings = computeLandlordRatings();
 
     Json::Value results(Json::arrayValue);
-    const auto &arr = db["landlords"];
-    for(const auto &ll : arr){
+    for(const auto &ll : landlordsJson){
         std::string name = ll["name"].asString();
         if(query.empty() || lower(name).find(query) != std::string::npos){
             Json::Value landlord = ll;
@@ -98,35 +93,18 @@ void LandlordCtrl::search(const drogon::HttpRequestPtr &req,
 
 void LandlordCtrl::stats(const drogon::HttpRequestPtr &req,
                         std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
-    Json::Value db;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(dbPath_);
-        if(!f.good()){
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k500InternalServerError);
-            (*resp->getJsonObject())["error"] = "landlords database missing";
-            cb(resp);
-            return;
-        }
-        f >> db;
-    }
-
     int landlordCount = 0;
     int propertyCount = 0;
     int unitCount = 0;
-
-    const auto &arr = db["landlords"];
-    for(const auto &ll : arr){
-        landlordCount++;
-        const auto &properties = ll["properties"];
-        for(const auto &property : properties){
-            propertyCount++;
-            const auto &units = property["unit_details"];
-            for(const auto &unit : units){
-                unitCount++;
-            }
-        }
+    std::string err;
+    
+    if(!SupabaseHelper::getLandlordStats(landlordCount, propertyCount, unitCount, err)) {
+        LOG_ERROR << "Failed to get landlord stats from Supabase: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "failed to load stats: " + err;
+        cb(resp);
+        return;
     }
 
     Json::Value body(Json::objectValue);
@@ -140,19 +118,16 @@ void LandlordCtrl::stats(const drogon::HttpRequestPtr &req,
 
 void LandlordCtrl::leaderboard(const drogon::HttpRequestPtr &req,
                                 std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
-    // Load landlords data
-    Json::Value landlordDb;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(dbPath_);
-        if(!f.good()){
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k500InternalServerError);
-            (*resp->getJsonObject())["error"] = "landlords database missing";
-            cb(resp);
-            return;
-        }
-        f >> landlordDb;
+    // Load landlords data from Supabase
+    Json::Value landlordsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllLandlords(landlordsArray, err)) {
+        LOG_ERROR << "Failed to get landlords from Supabase: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "failed to load landlords: " + err;
+        cb(resp);
+        return;
     }
 
     // Compute ratings map once (sum,count) using helper
@@ -162,7 +137,7 @@ void LandlordCtrl::leaderboard(const drogon::HttpRequestPtr &req,
     Json::Value results(Json::arrayValue);
     std::vector<std::pair<std::string, double>> sortedLandlords;
 
-    for (const auto &ll : landlordDb["landlords"]) {
+    for (const auto &ll : landlordsArray) {
         std::string landlordId = ll["landlord_id"].asString();
         double avgRating = 0.0;
         int reviewCount = 0;
@@ -315,63 +290,17 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
         properties.append(prop);
     }
 
-    Json::Value db;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-
-        // Load existing requests file if present
-        std::ifstream f(requestDbPath_);
-        if (f.good()) {
-            f >> db;
-        } else {
-            db["requests"] = Json::Value(Json::arrayValue);
-        }
-
-        if (!db.isMember("requests") || !db["requests"].isArray()) {
-            db["requests"] = Json::Value(Json::arrayValue);
-        }
-
-        // Compute next id
-        int nextId = 1;
-        for (const auto &reqItem : db["requests"]) {
-            if (reqItem.isMember("id")) {
-                nextId = std::max(nextId, reqItem["id"].asInt() + 1);
-            }
-        }
-
-        // Timestamp
-        std::time_t now = std::time(nullptr);
-        char buf[64];
-        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
-
-        Json::Value newReq(Json::objectValue);
-        newReq["id"]             = nextId;
-        newReq["landlord_name"]  = landlordName;
-        newReq["landlord_email"] = landlordEmail;
-        newReq["landlord_phone"] = landlordPhone;
-        newReq["details"]        = details;
-
-        // Save full properties array (no extra top-level property_* fields)
-        newReq["properties"]     = properties;
-
-        // who submitted the request
-        newReq["user_name"]      = requesterName;
-        newReq["user_email"]     = requesterEmail;
-        newReq["created_at"]     = buf;
-
-
-        db["requests"].append(newReq);
-
-        // Save back to file
-        std::ofstream out(requestDbPath_);
-        if (!out.good()) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k500InternalServerError);
-            (*resp->getJsonObject())["error"] = "Failed to write landlord_requests database";
-            cb(resp);
-            return;
-        }
-        out << db;
+    // Insert request into Supabase
+    int requestId = 0;
+    std::string err;
+    if(!SupabaseHelper::insertLandlordRequest(requestId, landlordName, landlordEmail, landlordPhone,
+                                               requesterName, requesterEmail, details, properties, err)) {
+        LOG_ERROR << "Failed to insert landlord request: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to save request: " + err;
+        cb(resp);
+        return;
     }
 
     Json::Value body(Json::objectValue);
@@ -385,23 +314,19 @@ void LandlordCtrl::submitRequest(const drogon::HttpRequestPtr &req,
 void LandlordCtrl::listRequests(const drogon::HttpRequestPtr &req,
                                 std::function<void (const drogon::HttpResponsePtr &)> &&cb)
 {
-    Json::Value db;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(requestDbPath_);
-        if (f.good()) {
-            f >> db;
-        } else {
-            db["requests"] = Json::Value(Json::arrayValue);
-        }
-    }
-
-    if (!db.isMember("requests") || !db["requests"].isArray()) {
-        db["requests"] = Json::Value(Json::arrayValue);
+    Json::Value requestsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllLandlordRequests(requestsArray, err)) {
+        LOG_ERROR << "Failed to get landlord requests: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to load requests: " + err;
+        cb(resp);
+        return;
     }
 
     Json::Value body(Json::objectValue);
-    body["requests"] = db["requests"];
+    body["requests"] = requestsArray;
     auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
     cb(resp);
 }
@@ -416,50 +341,15 @@ void LandlordCtrl::rejectRequest(const drogon::HttpRequestPtr &req,
             reason = (*json)["reason"].asString();
     }
 
-    Json::Value requestsDb;
-    Json::ArrayIndex foundIndex = Json::ArrayIndex(-1);
-
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-
-        std::ifstream rf(requestDbPath_);
-        if (rf.good()) {
-            rf >> requestsDb;
-        } else {
-            requestsDb["requests"] = Json::Value(Json::arrayValue);
-        }
-
-        if (!requestsDb.isMember("requests") || !requestsDb["requests"].isArray()) {
-            requestsDb["requests"] = Json::Value(Json::arrayValue);
-        }
-
-        auto &arr = requestsDb["requests"];
-        for (Json::ArrayIndex i = 0; i < arr.size(); ++i) {
-            if (arr[i]["id"].asInt() == requestId) {
-                foundIndex = i;
-                break;
-            }
-        }
-
-        if (foundIndex == Json::ArrayIndex(-1)) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k404NotFound);
-            (*resp->getJsonObject())["error"] = "Request not found";
-            cb(resp);
-            return;
-        }
-
-        // Remove this request from the array entirely
-        Json::Value newArr(Json::arrayValue);
-        for (Json::ArrayIndex i = 0; i < arr.size(); ++i) {
-            if (i != foundIndex) {
-                newArr.append(arr[i]);
-            }
-        }
-        requestsDb["requests"] = newArr;
-
-        std::ofstream out(requestDbPath_);
-        out << requestsDb;
+    // Delete request from Supabase
+    std::string err;
+    if(!SupabaseHelper::deleteLandlordRequest(requestId, err)) {
+        LOG_ERROR << "Failed to delete landlord request " << requestId << ": " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to delete request: " + err;
+        cb(resp);
+        return;
     }
 
     Json::Value body(Json::objectValue);
@@ -473,160 +363,134 @@ void LandlordCtrl::approveRequest(const drogon::HttpRequestPtr &req,
                                   std::function<void (const drogon::HttpResponsePtr &)> &&cb,
                                   int requestId)
 {
-    Json::Value requestsDb;
-    Json::Value landlordsDb;
-    Json::ArrayIndex foundIndex = Json::ArrayIndex(-1);
+    // Get request from Supabase
+    Json::Value requestsArray;
+    std::string err;
+    if(!SupabaseHelper::getAllLandlordRequests(requestsArray, err)) {
+        LOG_ERROR << "Failed to get landlord requests: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to load requests: " + err;
+        cb(resp);
+        return;
+    }
+
     Json::Value reqCopy;
-
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-
-        // load landlord_requests.json
-        std::ifstream rf(requestDbPath_);
-        if (rf.good()) {
-            rf >> requestsDb;
-        } else {
-            requestsDb["requests"] = Json::Value(Json::arrayValue);
+    bool found = false;
+    for(const auto &r : requestsArray) {
+        if(r["id"].asInt() == requestId) {
+            reqCopy = r;
+            found = true;
+            break;
         }
+    }
 
-        if (!requestsDb.isMember("requests") || !requestsDb["requests"].isArray()) {
-            requestsDb["requests"] = Json::Value(Json::arrayValue);
-        }
+    if(!found) {
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k404NotFound);
+        (*resp->getJsonObject())["error"] = "Request not found";
+        cb(resp);
+        return;
+    }
 
-        auto &arr = requestsDb["requests"];
-        for (Json::ArrayIndex i = 0; i < arr.size(); ++i) {
-            if (arr[i]["id"].asInt() == requestId) {
-                foundIndex = i;
-                reqCopy = arr[i];
-                break;
-            }
-        }
+    // Get all landlords to find max ID
+    Json::Value landlordsArray;
+    if(!SupabaseHelper::getAllLandlords(landlordsArray, err)) {
+        LOG_ERROR << "Failed to get landlords: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to load landlords: " + err;
+        cb(resp);
+        return;
+    }
 
-        if (foundIndex == Json::ArrayIndex(-1)) {
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
-            resp->setStatusCode(drogon::k404NotFound);
-            (*resp->getJsonObject())["error"] = "Request not found";
-            cb(resp);
-            return;
-        }
-
-        // load landlords.json
-        std::ifstream lf(dbPath_);
-        if (lf.good()) {
-            lf >> landlordsDb;
-        } else {
-            landlordsDb["landlords"] = Json::Value(Json::arrayValue);
-        }
-
-        if (!landlordsDb.isMember("landlords") || !landlordsDb["landlords"].isArray()) {
-            landlordsDb["landlords"] = Json::Value(Json::arrayValue);
-        }
-
-        // generate new landlord id LL###
-        int maxId = 0;
-        for (auto &ll : landlordsDb["landlords"]) {
-            auto idStr = ll["landlord_id"].asString();
-            if (idStr.rfind("LL", 0) == 0) {
+    // Generate new landlord ID
+    int maxId = 0;
+    for(const auto &ll : landlordsArray) {
+        std::string idStr = ll["landlord_id"].asString();
+        if(idStr.rfind("LL", 0) == 0 && idStr.length() >= 3) {
+            try {
                 int num = std::stoi(idStr.substr(2));
-                if (num > maxId) maxId = num;
+                if(num > maxId) maxId = num;
+            } catch(const std::exception &e) {
+                // Skip invalid IDs
+                continue;
             }
         }
-        int newId = maxId + 1;
+    }
+    int newId = maxId + 1;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "LL%03d", newId);
+    std::string landlordId = buf;
 
-        char buf[16];
-        snprintf(buf, sizeof(buf), "LL%03d", newId);
+    // Build properties array from request
+    Json::Value props(Json::arrayValue);
+    Json::Value propsFromReq = reqCopy["properties"];
 
-        Json::Value newLL(Json::objectValue);
-        newLL["landlord_id"] = buf;
-        newLL["name"] = reqCopy["landlord_name"].asString();
-
-        // contact = landlord's contact details from the request
-        Json::Value contact(Json::objectValue);
-        contact["email"] = reqCopy["landlord_email"].asString();
-        contact["phone"] = reqCopy["landlord_phone"].asString();
-        newLL["contact"] = contact;
-
-        // Build properties from the request.
-        Json::Value props(Json::arrayValue);
-        Json::Value propsFromReq = reqCopy["properties"];
-
-        if (propsFromReq.isArray() && propsFromReq.size() > 0) {
-            int propIndex = 0;
-            for (const auto &rp : propsFromReq) {
-                std::string street = rp["property_address"].asString();
-                if (street.empty()) continue;
-
-                Json::Value p(Json::objectValue);
-
-                // property_id e.g. P1_1, P1_2...
-                char pid[32];
-                snprintf(pid, sizeof(pid), "P%d_%d", newId, ++propIndex);
-                p["property_id"] = pid;
-
-                Json::Value a(Json::objectValue);
-                a["street"] = street;
-                a["city"]   = rp["property_city"].asString();
-                a["state"]  = rp["property_state"].asString();
-                a["zip"]    = rp["property_zip"].asString();
-                p["address"] = a;
-
-                Json::Value units(Json::arrayValue);
-                std::string unitNumber = rp["unit_number"].asString();
-                if (!unitNumber.empty()) {
-                    Json::Value u(Json::objectValue);
-                    u["unit_number"] = unitNumber;
-                    u["bedrooms"]    = rp["unit_bedrooms"].asInt();
-                    u["bathrooms"]   = rp["unit_bathrooms"].asInt();
-                    u["rent"]        = rp["unit_rent"].asInt();
-                    units.append(u);
-                }
-                p["unit_details"] = units;
-
-                props.append(p);
-            }
-        } else {
-            // Fallback to legacy single-property fields
+    if(propsFromReq.isArray() && propsFromReq.size() > 0) {
+        int propIndex = 0;
+        for(const auto &rp : propsFromReq) {
             Json::Value p(Json::objectValue);
-            std::string street = reqCopy["property_address"].asString();
-            if (!street.empty()) {
-                p["property_id"] = "P" + std::to_string(newId);
+            char pid[32];
+            snprintf(pid, sizeof(pid), "P%d_%d", newId, ++propIndex);
+            p["property_id"] = pid;
 
-                Json::Value a(Json::objectValue);
-                a["street"] = street;
-                a["city"]   = reqCopy["property_city"].asString();
-                a["state"]  = reqCopy["property_state"].asString();
-                a["zip"]    = reqCopy["property_zip"].asString();
-                p["address"] = a;
+            Json::Value a(Json::objectValue);
+            a["street"] = rp["property_address"].asString();
+            a["city"] = rp["property_city"].asString();
+            a["province"] = rp.get("property_state", rp.get("property_province", "")).asString();
+            a["zip"] = rp["property_zip"].asString();
+            p["address"] = a;
 
-                Json::Value units(Json::arrayValue);
-                std::string unitNumber = reqCopy["unit_number"].asString();
-                if (!unitNumber.empty()) {
-                    Json::Value u(Json::objectValue);
-                    u["unit_number"] = unitNumber;
-                    u["bedrooms"]    = reqCopy["unit_bedrooms"].asInt();
-                    u["bathrooms"]   = reqCopy["unit_bathrooms"].asInt();
-                    u["rent"]        = reqCopy["unit_rent"].asInt();
-                    units.append(u);
-                }
-                p["unit_details"] = units;
+            Json::Value units(Json::arrayValue);
+            Json::Value u(Json::objectValue);
+            u["unit_number"] = rp["unit_number"].asString();
+            u["bedrooms"] = rp["unit_bedrooms"].asInt();
+            u["bathrooms"] = rp["unit_bathrooms"].asInt();
+            u["rent"] = rp["unit_rent"].asInt();
+            units.append(u);
+            p["unit_details"] = units;
 
-                props.append(p);
-            }
+            props.append(p);
         }
+    } else {
+        // Fallback to legacy single-property fields
+        Json::Value p(Json::objectValue);
+        p["property_id"] = "P" + std::to_string(newId);
+        Json::Value a(Json::objectValue);
+        a["street"] = reqCopy["property_address"].asString();
+        a["city"] = reqCopy["property_city"].asString();
+        a["province"] = reqCopy.get("property_state", reqCopy.get("property_province", "")).asString();
+        a["zip"] = reqCopy["property_zip"].asString();
+        p["address"] = a;
+        Json::Value units(Json::arrayValue);
+        Json::Value u(Json::objectValue);
+        u["unit_number"] = reqCopy["unit_number"].asString();
+        u["bedrooms"] = reqCopy["unit_bedrooms"].asInt();
+        u["bathrooms"] = reqCopy["unit_bathrooms"].asInt();
+        u["rent"] = reqCopy["unit_rent"].asInt();
+        units.append(u);
+        p["unit_details"] = units;
+        props.append(p);
+    }
 
-        newLL["properties"] = props;
-        landlordsDb["landlords"].append(newLL);
+    // Insert landlord into Supabase
+    if(!SupabaseHelper::insertLandlord(landlordId, reqCopy["landlord_name"].asString(),
+                                       reqCopy["landlord_email"].asString(),
+                                       reqCopy["landlord_phone"].asString(),
+                                       props, err)) {
+        LOG_ERROR << "Failed to insert landlord: " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "Failed to create landlord: " + err;
+        cb(resp);
+        return;
+    }
 
-        // Remove the request completely instead of marking it approved
-        Json::Value removed;
-        arr.removeIndex(foundIndex, &removed);
-
-        // write both files
-        std::ofstream outReq(requestDbPath_);
-        outReq << requestsDb;
-
-        std::ofstream outLL(dbPath_);
-        outLL << landlordsDb;
+    // Delete the request
+    if(!SupabaseHelper::deleteLandlordRequest(requestId, err)) {
+        LOG_ERROR << "Failed to delete request: " << err;
+        // Continue anyway - landlord was created
     }
 
     Json::Value body(Json::objectValue);

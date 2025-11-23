@@ -29,19 +29,21 @@ export default function ReportedInbox({ user }) {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         })
         if (!res.ok) {
-          // backend endpoint likely not implemented yet — try frontend sample file as fallback
-          try {
-            const fallback = await fetch('/reported.json')
-            const j2 = await fallback.json().catch(() => ({}))
-            setReports(j2.reports || [])
-            setErr('Loaded local sample reports (backend endpoint missing).')
-          } catch (e2) {
+          const errorData = await res.json().catch(() => ({}))
+          if (res.status === 401) {
+            setErr('Unauthorized: Please log in as admin.')
             setReports([])
-            setErr('No reports available (backend endpoint missing).')
+          } else {
+            // Backend endpoint exists but returned error
+            setErr(`Backend error (${res.status}): ${errorData.error || 'Unknown error'}`)
+            setReports([])
           }
         } else {
           const j = await res.json().catch(() => ({}))
           setReports(j.reports || [])
+          if (j.reports && j.reports.length === 0) {
+            setErr('') // Clear error if empty array is valid
+          }
         }
       } catch (e) {
         // network error; fallback to frontend public sample if present

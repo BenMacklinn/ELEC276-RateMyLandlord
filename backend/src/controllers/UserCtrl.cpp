@@ -1,4 +1,5 @@
 #include "UserCtrl.h"
+#include "SupabaseHelper.h"
 #include <fstream>
 
 void UserCtrl::me(const drogon::HttpRequestPtr &req, std::function<void (const drogon::HttpResponsePtr &)> &&cb) {
@@ -12,33 +13,26 @@ void UserCtrl::me(const drogon::HttpRequestPtr &req, std::function<void (const d
         return;
     }
 
-    // load users.json and find the matching email
-    Json::Value arr(Json::arrayValue);
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        std::ifstream f(usersPath_);
-        if(f.good()) {
-            f >> arr;
-        }
+    // Load user data from Supabase database
+    std::string name;
+    bool isAdmin = false;
+    std::string err;
+    if(!SupabaseHelper::getUserData(email, name, isAdmin, err)) {
+        LOG_ERROR << "Failed to get user data for " << email << ": " << err;
+        auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value(Json::objectValue));
+        resp->setStatusCode(drogon::k500InternalServerError);
+        (*resp->getJsonObject())["error"] = "failed to load user data";
+        cb(resp);
+        return;
     }
 
-    std::string name = "";
-    int admin = 0;
-    for(const auto &u : arr) {
-        if(u["email"].asString() == email) {
-            name = u.get("name","").asString();
-            admin = u.get("admin", 0).asInt();
-            break;
-        }
-    }
-
-    // Fallback if not found (shouldn't happen right after login/signup)
+    // Fallback if name is empty
     if(name.empty()) name = "User";
 
     Json::Value me(Json::objectValue);
     me["email"] = email;
     me["name"] = name;
-    me["admin"] = admin;
+    me["admin"] = isAdmin ? 1 : 0;
 
     auto resp = drogon::HttpResponse::newHttpJsonResponse(me);
     cb(resp);
