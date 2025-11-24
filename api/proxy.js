@@ -10,50 +10,67 @@ export default async function handler(req, res) {
     });
   }
 
+  // Handle OPTIONS preflight first
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    return res.status(200).end();
+  }
+
   // Get the API path from query parameter (from rewrite) or construct from URL
-  const path = req.query.path || req.url.replace('/api/', '');
+  const path = req.query.path || req.url.replace('/api/', '').split('?')[0];
   const fullPath = path.startsWith('/') ? path : `/${path}`;
   
   // Construct the backend URL
-  const backendRequestUrl = `${backendUrl}/api${fullPath}`;
+  let backendRequestUrl = `${backendUrl}/api${fullPath}`;
   
-  // Handle query string
-  const queryString = new URLSearchParams(req.query).toString();
-  const finalUrl = queryString && !path.includes('?') 
+  // Handle query string (exclude 'path' parameter)
+  const queryParams = { ...req.query };
+  delete queryParams.path; // Remove the 'path' parameter used by rewrite
+  const queryString = new URLSearchParams(queryParams).toString();
+  const finalUrl = queryString 
     ? `${backendRequestUrl}?${queryString}` 
     : backendRequestUrl;
 
   try {
-    // Prepare request body
+    // Prepare request body - Vercel already parses JSON bodies
     let requestBody = null;
-    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
       if (req.body) {
         requestBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
       }
     }
 
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
     // Forward the request to the backend
     const backendResponse = await fetch(finalUrl, {
       method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(req.headers.authorization && { 'Authorization': req.headers.authorization }),
-        ...(req.headers['content-type'] && { 'Content-Type': req.headers['content-type'] })
-      },
+      headers: headers,
       ...(requestBody && { body: requestBody })
     });
 
-    const data = await backendResponse.json().catch(() => ({}));
+    // Get response data
+    const contentType = backendResponse.headers.get('content-type');
+    let data;
+    if (contentType && contentType.includes('application/json')) {
+      data = await backendResponse.json().catch(() => ({}));
+    } else {
+      data = await backendResponse.text().catch(() => '');
+    }
 
     // Forward the response with proper CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-
-    // Handle OPTIONS preflight
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
 
     if (!backendResponse.ok) {
       return res.status(backendResponse.status).json(data);
