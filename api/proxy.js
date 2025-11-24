@@ -34,11 +34,23 @@ export default async function handler(req, res) {
     : backendRequestUrl;
 
   try {
+    // Log for debugging
+    console.log('Proxy request:', {
+      method: req.method,
+      path: fullPath,
+      finalUrl: finalUrl,
+      hasBody: !!req.body,
+      bodyType: typeof req.body
+    });
+
     // Prepare request body - Vercel already parses JSON bodies
     let requestBody = null;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       if (req.body) {
         requestBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      } else if (req.method === 'POST') {
+        // For POST requests, ensure we send an empty object if no body
+        requestBody = '{}';
       }
     }
 
@@ -52,11 +64,14 @@ export default async function handler(req, res) {
     }
 
     // Forward the request to the backend
+    console.log('Forwarding to backend:', finalUrl, 'Method:', req.method);
     const backendResponse = await fetch(finalUrl, {
       method: req.method,
       headers: headers,
       ...(requestBody && { body: requestBody })
     });
+
+    console.log('Backend response status:', backendResponse.status);
 
     // Get response data
     const contentType = backendResponse.headers.get('content-type');
