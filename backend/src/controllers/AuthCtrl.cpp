@@ -10,6 +10,7 @@
 #include <cstring>
 #include <sodium.h>
 #include <vector>
+#include <json/json.h>
 
 // Creating unnamed namespace to prevent varaible/functional collisons
 namespace {
@@ -117,81 +118,118 @@ namespace {
         return toCopy;
     }
 
-    /* This is the local notification function used only in this class. It builds and sends the actual email with SMTP*/
+    // Helper to write curl response to string (for REST API)
+    size_t writeToString(char *buffer, size_t size, size_t nitems, void *userdata) {
+        if(!buffer || !userdata) return 0;
+        auto *dest = static_cast<std::string*>(userdata);
+        dest->append(buffer, size * nitems);
+        return size * nitems;
+    }
+
+    /* This function sends email using SendGrid REST API (works when SMTP is blocked) */
     bool sendVerificationEmail(const std::string &recipient, const std::string &code, std::string &err) {
         
-        // These point to enviroment varaibles defined in ./run_backend that define the email information we are using to send emails
-        const char *username = std::getenv("SMTP_USERNAME");
-        const char *password = std::getenv("SMTP_PASSWORD");
-        const char *host = std::getenv("SMTP_HOST");
-        const char *port = std::getenv("SMTP_PORT");
+        // Get SendGrid API key from environment variable
+        const char *apiKey = std::getenv("SMTP_PASSWORD"); // Reuse SMTP_PASSWORD for SendGrid API key
         const char *fromEnv = std::getenv("SMTP_FROM");
         const char *fromNameEnv = std::getenv("SMTP_FROM_NAME");
 
-        // Checks that the enviroment variables exist
-        if(!username || !password) {
-            err = "SMTP credentials not configured";
+        // Checks that the environment variables exist
+        if(!apiKey) {
+            err = "SendGrid API key not configured (set SMTP_PASSWORD)";
             return false;
         }
 
-        const std::string hostStr = host ? host : "smtp.gmail.com";
-        const std::string portStr = port ? port : "587";
-        const std::string fromAddress = fromEnv ? fromEnv : username;
-        const std::string fromHeader = (fromNameEnv && *fromNameEnv)
-            ? (std::string(fromNameEnv) + " <" + fromAddress + ">")
-            : fromAddress;
+        const std::string fromAddress = fromEnv ? fromEnv : "noreply@ratemylandlord.com";
+        const std::string fromName = fromNameEnv ? fromNameEnv : "RateMyLandlord";
 
         if(!ensureCurlInit(err)) {
             return false;
         }
 
-        // init curl pointer for mailing client
+        // Build JSON payload for SendGrid REST API
+        Json::Value payload(Json::objectValue);
+        
+        // Personalizations (recipient)
+        Json::Value personalizations(Json::arrayValue);
+        Json::Value personalization(Json::objectValue);
+        Json::Value toArray(Json::arrayValue);
+        Json::Value toObj(Json::objectValue);
+        toObj["email"] = recipient;
+        toArray.append(toObj);
+        personalization["to"] = toArray;
+        personalizations.append(personalization);
+        payload["personalizations"] = personalizations;
+
+        // From
+        Json::Value from(Json::objectValue);
+        from["email"] = fromAddress;
+        from["name"] = fromName;
+        payload["from"] = from;
+
+        // Subject
+        payload["subject"] = "Your RateMyLandlord verification code";
+
+        // Content
+        Json::Value contentArray(Json::arrayValue);
+        Json::Value content(Json::objectValue);
+        content["type"] = "text/plain";
+        std::ostringstream emailBody;
+        emailBody << "Hi,\n\n";
+        emailBody << "Your RateMyLandlord verification code is: " << code << "\n";
+        emailBody << "It expires in 10 minutes.\n\n";
+        emailBody << "If you did not request this code you can ignore this email.\n";
+        content["value"] = emailBody.str();
+        contentArray.append(content);
+        payload["content"] = contentArray;
+
+        // Convert to JSON string
+        Json::StreamWriterBuilder writer;
+        const std::string body = Json::writeString(writer, payload);
+
+        // Make HTTP POST request to SendGrid
         CURL *curl = curl_easy_init();
         if(!curl) {
-            err = "failed to construct mail client";
+            err = "failed to construct HTTP client";
             return false;
         }
 
-        std::string url = "smtp://" + hostStr + ":" + portStr;
+        std::string url = "https://api.sendgrid.com/v3/mail/send";
+        std::string responseBody;
+
+        // Set headers
+        struct curl_slist *headers = nullptr;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        std::string authHeader = "Authorization: Bearer " + std::string(apiKey);
+        headers = curl_slist_append(headers, authHeader.c_str());
+
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_USERNAME, username);
-        curl_easy_setopt(curl, CURLOPT_PASSWORD, password);
-        curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
-        curl_easy_setopt(curl, CURLOPT_MAIL_FROM, fromAddress.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-
-        struct curl_slist *recipients = nullptr;
-        recipients = curl_slist_append(recipients, recipient.c_str());
-        curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
-
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
-
-        std::ostringstream payload;
-        payload << "To: " << recipient << "\r\n";
-        payload << "From: " << fromHeader << "\r\n";
-        payload << "Subject: Your RateMyLandlord verification code\r\n";
-        payload << "Content-Type: text/plain; charset=utf-8\r\n";
-        payload << "\r\n";
-        payload << "Hi,\r\n\r\n";
-        payload << "Your RateMyLandlord verification code is: " << code << "\r\n";
-        payload << "It expires in 10 minutes.\r\n\r\n";
-        payload << "If you did not request this code you can ignore this email.\r\n";
-
-        const std::string payloadStr = payload.str();
-        CurlPayload payloadData{&payloadStr, 0};
-
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, payloadSource);
-        curl_easy_setopt(curl, CURLOPT_READDATA, &payloadData);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
 
         CURLcode res = curl_easy_perform(curl);
         if(res != CURLE_OK) {
             err = curl_easy_strerror(res);
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(curl);
+            return false;
         }
 
-        curl_slist_free_all(recipients);
+        long httpCode = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+        curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
 
-        return res == CURLE_OK;
+        if(httpCode < 200 || httpCode >= 300) {
+            err = "SendGrid returned HTTP " + std::to_string(httpCode) + ": " + responseBody;
+            return false;
+        }
+
+        return true;
     }
 }
 
