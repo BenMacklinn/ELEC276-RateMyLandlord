@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     libjsoncpp-dev \
     libssl-dev \
     uuid-dev \
+    zlib1g-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
